@@ -80,6 +80,36 @@ func newIdentity() {
 	fmt.Printf("New identity created: %s\n", id)
 }
 
+func authenticate(id string) identity.Identity {
+	fmt.Print("Enter passphrase: ")
+	key, err := terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Println("")
+	if err != nil {
+		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
+		return nil
+	}
+
+	validateDBPath()
+	store, err := identity.NewLocalStore(dbPath)
+	if err != nil {
+		fmt.Printf("An error occurred while opening identity database file:\n")
+		fmt.Println(err.Error())
+		return nil
+	}
+	defer store.Close()
+
+	i, err := store.Get(id)
+	if err != nil {
+		return nil
+	}
+
+	if !i.Authenticate(string(key)) {
+		return nil
+	}
+
+	return i
+}
+
 func newToken() {
 	flags := flag.NewFlagSet("new-token", flag.ExitOnError)
 	var id = flags.String("id", "", "identity to authenticate")
@@ -90,31 +120,9 @@ func newToken() {
 		os.Exit(1)
 	}
 
-	fmt.Print("Enter passphrase: ")
-	key, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println("")
-	if err != nil {
-		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
-		os.Exit(1)
-	}
-
-	validateDBPath()
-	store, err := identity.NewLocalStore(dbPath)
-	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer store.Close()
-
-	i, err := store.Get(*id)
-	if err != nil {
-		fmt.Println("Unable to authenticate identity")
-		os.Exit(1)
-	}
-
-	if !i.Authenticate(string(key)) {
-		fmt.Println("Unable to authenticate identity")
+	i := authenticate(*id)
+	if i == nil {
+		fmt.Println("unable to authenticate")
 		os.Exit(1)
 	}
 
@@ -136,7 +144,8 @@ func newToken() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Access Token: %s\n\nRefresh Token: %s\n", access, refresh)
+	fmt.Printf("Access Token: %s\n%s\n", access.ID(), access.String())
+	fmt.Printf("Refresh Token: %s\n%s\n", refresh.ID(), refresh.String())
 }
 
 func listen() {

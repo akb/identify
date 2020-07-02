@@ -11,17 +11,17 @@ production ready.
 
 ## Building
 
-    go build -o bin/identity cmd/*.go
+    make
 
 ## CLI
 
 `identity new`
 - creates a new identity
 
-`identity log-in`
+`identity new-token`
 - authenticates an identity and generates access and refresh tokens
 
-`identity log-out`
+`identity delete-token`
 - deletes access tokens
 
 `identity listen`
@@ -48,18 +48,18 @@ production ready.
 
 # License
 
-    identity authentication and authorization service
-    Copyright (C) 2020 Alexei Broner
+"identity" authentication and authorization service
+Copyright (C) 2020 Alexei Broner
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.

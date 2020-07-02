@@ -137,7 +137,10 @@ func (a api) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(NewTokenResponse{access, refresh})
+	response, err := json.Marshal(NewTokenResponse{
+		Access:  access.String(),
+		Refresh: refresh.String(),
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -207,8 +210,8 @@ func (p AuthProvider) RequireTokenAuth(h http.Handler) http.Handler {
 			return
 		}
 
-		id, err := token.Identity()
-		if err != nil {
+		id := token.Identity()
+		if id == "" {
 			p.unauthorizedToken(w)
 			return
 		}

@@ -38,32 +38,41 @@ var (
 
 type jwToken struct {
 	*jwt.Token
+	secret string
 }
 
-func (t *jwToken) GetClaim(key string) (string, error) {
+func (t *jwToken) GetClaim(key string) string {
 	claims, ok := t.Token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", fmt.Errorf("Unable to read claims from Token")
+		return ""
 	}
 
 	value, ok := claims[key].(string)
 	if !ok {
-		return "", fmt.Errorf("Unable to read \"%s\" claim from Token", key)
+		return ""
 	}
 
-	return value, nil
+	return value
 }
 
-func (t *jwToken) ID() (string, error) {
+func (t *jwToken) ID() string {
 	return t.GetClaim("jti")
 }
 
-func (t *jwToken) Identity() (string, error) {
+func (t *jwToken) Identity() string {
 	return t.GetClaim("identity")
 }
 
 func (t *jwToken) Valid() bool {
 	return t.Token.Valid
+}
+
+func (t *jwToken) String() string {
+	s, err := t.SignedString([]byte(t.secret))
+	if err != nil {
+		return ""
+	}
+	return s
 }
 
 type localTokenStore struct {
@@ -113,20 +122,20 @@ func (s *localTokenStore) Parse(unparsed string) (Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &jwToken{token}, nil
+	return &jwToken{token, s.secret}, nil
 }
 
-func (s *localTokenStore) New(identity Identity) (string, string, error) {
+func (s *localTokenStore) New(identity Identity) (Token, Token, error) {
 	id := identity.String()
 
 	accessUUID, err := uuid.NewRandom()
 	if err != nil {
-		return "", "", err
+		return nil, nil, err
 	}
 
 	refreshUUID, err := uuid.NewRandom()
 	if err != nil {
-		return "", "", err
+		return nil, nil, err
 	}
 
 	accessID := accessUUID.String()
@@ -166,20 +175,10 @@ func (s *localTokenStore) New(identity Identity) (string, string, error) {
 		}
 		return nil
 	}); err != nil {
-		return "", "", err
+		return nil, nil, err
 	}
 
-	access, err := at.SignedString([]byte(s.secret))
-	if err != nil {
-		return "", "", err
-	}
-
-	refresh, err := rt.SignedString([]byte(s.secret))
-	if err != nil {
-		return "", "", err
-	}
-
-	return access, refresh, nil
+	return &jwToken{at, s.secret}, &jwToken{rt, s.secret}, nil
 }
 
 func (s *localTokenStore) sweep() error {

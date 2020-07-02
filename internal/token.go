@@ -18,14 +18,15 @@
 package identity
 
 type Token interface {
-	ID() (string, error)
-	Identity() (string, error)
-	GetClaim(string) (string, error)
+	ID() string
+	Identity() string
+	GetClaim(string) string
 	Valid() bool
+	String() string
 }
 
 type TokenStore interface {
-	New(Identity) (string, string, error)
+	New(Identity) (Token, Token, error)
 	Parse(string) (Token, error)
 	Close()
 }
