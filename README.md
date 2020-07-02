@@ -11,26 +11,7 @@ production ready.
 
 ## Building
 
-    go build -o bin/identity cmd/identity.go
-
-## TODO
-- Automated tests
-- Token deletion
-- Token refresh
-- Token validation
-- Token claim assertion
-- Multi-challenge authentication
-- OAuth support
-- JavaScript client
-- HTML interface
-- CORS
-- API versioning/specification/discovery
-- External token store (Redis?)
-- External identity store
-- Federated authentication
-- X.509 support
-- CLI token persistence/authentication
-- Structured CLI output
+    go build -o bin/identity cmd/*.go
 
 ## CLI
 
