@@ -30,8 +30,6 @@ import (
 )
 
 func main() {
-	notice()
-
 	if len(os.Args) < 2 {
 		help()
 		os.Exit(1)
