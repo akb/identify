@@ -14,6 +14,7 @@ production ready.
     make
 
 ## CLI
+
 `identify new-identity`
 - creates a new identity
 
@@ -45,10 +46,31 @@ production ready.
 - Requires Token auth
 - Deletes authenticated access token
 
-# License
+## Auth Flow
 
-Identify authentication and authorization service
-Copyright (C) 2020 Alexei Broner
+    +----------+        +-------------+             +---------+
+    | Identity |        | Auth Server |             | Service |
+    +----------+        +-------------+             +---------+
+         |                     |                         |
+         |                     +--- request public key <-|
+         |                     |                         |
+         |                     +-> provide public key ---+
+         |                     |                         |
+         +-> navigates to -----+                         |
+         |                     |                         |
+         |               authenticates                   |
+         |                     |                         |
+         +--- provides token <-+                         |
+         |                                               |
+         +-> request service, providing token -----------+
+                                                         |
+                                               verifies token origin
+                                                         |
+                                                 provides service
+
+## License
+
+Identify Copyright (C) 2020 Alexei Broner
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
