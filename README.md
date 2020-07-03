@@ -1,9 +1,9 @@
-identity
+Identify
 ========
 
-Identity and authentication service. Identity provides a secure interface for
-authenticating one's identity and provides token-based authorization for other
-services.
+Identity authentication and authorization service. Identify provides a secure
+interface for authenticating one's identity and provides token-based
+authorization for other services.
 
 This project is in its infancy, feel free to submit issues but I'm not quite
 ready for pull requests. Use at your own risk, this code is far from being
@@ -14,17 +14,16 @@ production ready.
     make
 
 ## CLI
-
-`identity new`
+`identify new-identity`
 - creates a new identity
 
-`identity new-token`
+`identify`
 - authenticates an identity and generates access and refresh tokens
 
-`identity delete-token`
+`identify log-out`
 - deletes access tokens
 
-`identity listen`
+`identify listen`
 - listens for HTTP traffic
 
 ## HTTP API
@@ -48,7 +47,7 @@ production ready.
 
 # License
 
-"identity" authentication and authorization service
+Identify authentication and authorization service
 Copyright (C) 2020 Alexei Broner
 
 This program is free software: you can redistribute it and/or modify

@@ -1,4 +1,4 @@
-// "identity" authentication and authorization service
+// Identify authentication and authorization service
 //
 // Copyright (C) 2020 Alexei Broner
 //
@@ -26,7 +26,7 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/akb/identity/internal"
+	"github.com/akb/identify/internal"
 )
 
 func main() {
@@ -36,26 +36,23 @@ func main() {
 	}
 
 	switch command := os.Args[1]; command {
-	case "new":
+	case "new-identity":
 		newIdentity()
-	case "new-token":
-		newToken()
-	case "delete-token":
+	case "log-out":
 		deleteToken()
 	case "listen":
 		listen()
 	case "help":
 		help()
 	default:
-		help()
-		os.Exit(1)
+		newToken()
 	}
 }
 
 func newIdentity() {
 	validateDBPath()
 
-	store, err := identity.NewLocalStore(dbPath)
+	store, err := identify.NewLocalStore(dbPath)
 	if err != nil {
 		fmt.Printf("An error occurred while opening identity database file:\n")
 		fmt.Println(err.Error())
@@ -80,7 +77,7 @@ func newIdentity() {
 	fmt.Printf("New identity created: %s\n", id)
 }
 
-func authenticate(id string) identity.Identity {
+func authenticate(id string) identify.Identity {
 	fmt.Print("Enter passphrase: ")
 	key, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println("")
@@ -90,7 +87,7 @@ func authenticate(id string) identity.Identity {
 	}
 
 	validateDBPath()
-	store, err := identity.NewLocalStore(dbPath)
+	store, err := identify.NewLocalStore(dbPath)
 	if err != nil {
 		fmt.Printf("An error occurred while opening identity database file:\n")
 		fmt.Println(err.Error())
@@ -129,7 +126,7 @@ func newToken() {
 	validateTokenSecret()
 	validateTokenDBPath()
 
-	tokenStore, err := identity.NewLocalTokenStore(tokenDBPath, tokenSecret)
+	tokenStore, err := identify.NewLocalTokenStore(tokenDBPath, tokenSecret)
 	if err != nil {
 		fmt.Printf("An error occurred while opening token database file:\n")
 		fmt.Println(err.Error())
@@ -169,7 +166,7 @@ func deleteToken() {
 		os.Exit(1)
 	}
 
-	tokenStore, err := identity.NewLocalTokenStore(tokenDBPath, tokenSecret)
+	tokenStore, err := identify.NewLocalTokenStore(tokenDBPath, tokenSecret)
 	if err != nil {
 		fmt.Println("An error occurred while opening token database file:")
 		fmt.Println(err.Error())
@@ -192,7 +189,7 @@ func listen() {
 	validateDBPath()
 	validateTokenDBPath()
 
-	store, err := identity.NewLocalStore(dbPath)
+	store, err := identify.NewLocalStore(dbPath)
 	if err != nil {
 		fmt.Printf("An error occurred while opening identity database file:\n")
 		fmt.Println(err.Error())
@@ -200,7 +197,7 @@ func listen() {
 	}
 	defer store.Close()
 
-	tokenStore, err := identity.NewLocalTokenStore(tokenDBPath, tokenSecret)
+	tokenStore, err := identify.NewLocalTokenStore(tokenDBPath, tokenSecret)
 	if err != nil {
 		fmt.Printf("An error occurred while opening token database file:\n")
 		fmt.Println(err.Error())
@@ -208,8 +205,8 @@ func listen() {
 	}
 	defer tokenStore.Close()
 
-	server := identity.NewHTTPServer(
-		identity.HTTPServerConfig{address, realm, store, tokenStore})
+	server := identify.NewHTTPServer(
+		identify.HTTPServerConfig{address, realm, store, tokenStore})
 
 	fmt.Printf("Identity API listening for HTTP requests on %s...\n", address)
 	log.Fatal(server.ListenAndServe())

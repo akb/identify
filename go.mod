@@ -1,4 +1,4 @@
-module github.com/akb/identity
+module github.com/akb/identify
 
 go 1.14
 

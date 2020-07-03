@@ -1,4 +1,4 @@
 .PHONY: build;
 
 build:
-	go build -o bin/identity cmd/*.go
+	go build -o bin/identify cmd/*.go

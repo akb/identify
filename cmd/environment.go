@@ -1,4 +1,4 @@
-// "identity" authentication and authorization service
+// Identify authentication and authorization service
 //
 // Copyright (C) 2020 Alexei Broner
 //
@@ -63,7 +63,7 @@ func validateDBPath() {
 			fmt.Println("environment variable IDENTITY_DB_PATH.")
 			os.Exit(1)
 		}
-		dbPath = path.Join(home, ".identity", "identity.db")
+		dbPath = path.Join(home, ".identify", "identity.db")
 	}
 }
 
@@ -75,6 +75,6 @@ func validateTokenDBPath() {
 			fmt.Println("environment variable IDENTITY_TOKEN_DB_PATH.")
 			os.Exit(1)
 		}
-		tokenDBPath = path.Join(home, ".identity", "token.db")
+		tokenDBPath = path.Join(home, ".identify", "token.db")
 	}
 }
