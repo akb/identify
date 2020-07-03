@@ -52,6 +52,36 @@ func help() {
 		fmt.Println("- path to identity database file")
 		fmt.Println("- default: $HOME/.identity/identity.db")
 
+	case "new-token":
+		fmt.Println("Usage: identity new-token")
+		fmt.Println("")
+		fmt.Println("Authenticates user and issues a new pair of tokens")
+		fmt.Println("")
+		fmt.Println("Environment Variables:")
+		fmt.Println("IDENTITY_DB_PATH")
+		fmt.Println("- path to identity database file")
+		fmt.Println("- default: $HOME/.identity/identity.db")
+		fmt.Println("IDENTITY_TOKEN_DB_PATH")
+		fmt.Println("- path to token database file")
+		fmt.Println("- default: $HOME/.identity/token.db")
+		fmt.Println("IDENTITY_TOKEN_SECRET")
+		fmt.Println("- secret key used to sign tokens")
+
+	case "delete-token":
+		fmt.Println("Usage: identity delete-token")
+		fmt.Println("")
+		fmt.Println("Deletes a token belonging to the authenticated user")
+		fmt.Println("")
+		fmt.Println("Environment Variables:")
+		fmt.Println("IDENTITY_DB_PATH")
+		fmt.Println("- path to identity database file")
+		fmt.Println("- default: $HOME/.identity/identity.db")
+		fmt.Println("IDENTITY_TOKEN_DB_PATH")
+		fmt.Println("- path to token database file")
+		fmt.Println("- default: $HOME/.identity/token.db")
+		fmt.Println("IDENTITY_TOKEN_SECRET")
+		fmt.Println("- secret key used to sign tokens")
+
 	case "listen":
 		fmt.Println("Usage: identity listen")
 		fmt.Println("")
@@ -83,6 +113,8 @@ func help() {
 		fmt.Println("")
 		fmt.Println("Subcommands:")
 		fmt.Println("new          create a new identity")
+		fmt.Println("new-token    create a new token")
+		fmt.Println("delete-token delete a new token")
 		fmt.Println("listen       listen for incoming http requests")
 		fmt.Println("help         display usage instructions")
 	}

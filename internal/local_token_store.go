@@ -126,6 +126,7 @@ func (s *localTokenStore) Parse(unparsed string) (Token, error) {
 }
 
 func (s *localTokenStore) New(identity Identity) (Token, Token, error) {
+	println("TOKEN NEW")
 	id := identity.String()
 
 	accessUUID, err := uuid.NewRandom()
@@ -179,6 +180,16 @@ func (s *localTokenStore) New(identity Identity) (Token, Token, error) {
 	}
 
 	return &jwToken{at, s.secret}, &jwToken{rt, s.secret}, nil
+}
+
+func (s *localTokenStore) Delete(identity, id string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(accessTokenBucket)
+		if string(b.Get([]byte(id))) == identity {
+			return b.Delete([]byte(id))
+		}
+		return fmt.Errorf("unauthorized")
+	})
 }
 
 func (s *localTokenStore) sweep() error {

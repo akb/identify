@@ -43,8 +43,8 @@ type HTTPServerConfig struct {
 	Addr  string
 	Realm string
 
-	Store Store
-	Token TokenStore
+	Store      Store
+	TokenStore TokenStore
 }
 
 type api struct {
@@ -56,14 +56,14 @@ type api struct {
 func NewHTTPServer(c HTTPServerConfig) *http.Server {
 	return &http.Server{
 		Addr:    c.Addr,
-		Handler: api{c, AuthProvider{c.Realm, c.Store, c.Token}},
+		Handler: api{c, AuthProvider{c.Realm, c.Store, c.TokenStore}},
 	}
 }
 
 func (a api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 		if r.Method != http.MethodPost {
-			w.Header().Set("Allowed", "POST")
+			w.Header().Set("Allow", "POST")
 			http.Error(w, "Only POST requests are allowed for this endpoint.",
 				http.StatusMethodNotAllowed)
 			return
@@ -71,13 +71,17 @@ func (a api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.new(w, r)
 
 	} else if r.URL.Path == "/token" {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allowed", "POST")
-			http.Error(w, "Only POST requests are allowed for this endpoint.",
+		if r.Method == http.MethodPost {
+			a.auth.RequireBasicAuth(http.HandlerFunc(a.newToken)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodDelete {
+			a.auth.RequireTokenAuth(http.HandlerFunc(a.deleteToken)).ServeHTTP(w, r)
+		} else {
+			w.Header().Set("Allow", "POST, DELETE")
+			http.Error(w,
+				"Only DELETE or POST requests are allowed for this endpoint.",
 				http.StatusMethodNotAllowed)
 			return
 		}
-		a.auth.RequireBasicAuth(http.HandlerFunc(a.token)).ServeHTTP(w, r)
 	} else {
 		http.NotFound(w, r)
 	}
@@ -88,10 +92,6 @@ func (a api) new(w http.ResponseWriter, r *http.Request) {
 
 	if hasContentType(r, "application/x-www-form-urlencoded") ||
 		hasContentType(r, "multipart/form-data") {
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
 		key = r.PostFormValue("key")
 
 	} else if hasContentType(r, "application/json") {
@@ -124,14 +124,14 @@ func (a api) new(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func (a api) token(w http.ResponseWriter, r *http.Request) {
+func (a api) newToken(w http.ResponseWriter, r *http.Request) {
 	identity, err := IdentityFromContext(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	access, refresh, err := a.Token.New(identity)
+	access, refresh, err := a.TokenStore.New(identity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -150,17 +150,31 @@ func (a api) token(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
+func (a api) deleteToken(w http.ResponseWriter, r *http.Request) {
+	token, err := TokenFromContext(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = a.TokenStore.Delete(token.Identity(), token.ID())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 type AuthProvider struct {
 	realm string
 
-	store Store
-	token TokenStore
+	store      Store
+	tokenStore TokenStore
 }
 
 type contextKey string
 
 const (
 	identityContextKey = contextKey("identity")
+	tokenContextKey    = contextKey("token")
 )
 
 func IdentityFromContext(ctx context.Context) (Identity, error) {
@@ -169,6 +183,14 @@ func IdentityFromContext(ctx context.Context) (Identity, error) {
 		return nil, fmt.Errorf("Identity not found in request context")
 	}
 	return v.(Identity), nil
+}
+
+func TokenFromContext(ctx context.Context) (Token, error) {
+	v := ctx.Value(tokenContextKey)
+	if v == nil {
+		return nil, fmt.Errorf("Token not found in request context")
+	}
+	return v.(Token), nil
 }
 
 func (p AuthProvider) RequireBasicAuth(h http.Handler) http.Handler {
@@ -204,7 +226,7 @@ func (p AuthProvider) RequireTokenAuth(h http.Handler) http.Handler {
 			return
 		}
 
-		token, err := p.token.Parse(splitHeader[1])
+		token, err := p.tokenStore.Parse(splitHeader[1])
 		if err != nil || !token.Valid() {
 			p.unauthorizedToken(w)
 			return

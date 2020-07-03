@@ -42,6 +42,8 @@ func main() {
 		newIdentity()
 	case "new-token":
 		newToken()
+	case "delete-token":
+		deleteToken()
 	case "listen":
 		listen()
 	case "help":
@@ -145,7 +147,45 @@ func newToken() {
 	}
 
 	fmt.Printf("Access Token: %s\n%s\n", access.ID(), access.String())
+	fmt.Println("")
 	fmt.Printf("Refresh Token: %s\n%s\n", refresh.ID(), refresh.String())
+}
+
+func deleteToken() {
+	flags := flag.NewFlagSet("delete-token", flag.ExitOnError)
+	var id = flags.String("id", "", "identity to authenticate")
+	var tokenID = flags.String("token-id", "", "id of token to delete")
+	flags.Parse(os.Args[2:])
+
+	if len(*id) == 0 {
+		fmt.Println("an identity must be provided to authenticate")
+		os.Exit(1)
+	}
+
+	validateTokenSecret()
+	validateTokenDBPath()
+
+	i := authenticate(*id)
+	if i == nil {
+		fmt.Println("unable to authenticate")
+		os.Exit(1)
+	}
+
+	tokenStore, err := identity.NewLocalTokenStore(tokenDBPath, tokenSecret)
+	if err != nil {
+		fmt.Println("An error occurred while opening token database file:")
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	defer tokenStore.Close()
+
+	if err := tokenStore.Delete(i.String(), *tokenID); err != nil {
+		fmt.Println("An error occurred while deleting token:")
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	fmt.Println("Token successfully deleted")
 }
 
 func listen() {

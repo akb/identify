@@ -28,5 +28,6 @@ type Token interface {
 type TokenStore interface {
 	New(Identity) (Token, Token, error)
 	Parse(string) (Token, error)
+	Delete(string, string) error
 	Close()
 }
