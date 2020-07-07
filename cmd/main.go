@@ -18,196 +18,52 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/akb/identify/internal"
+	"github.com/akb/go-cli"
 )
 
+func promptForPassphrase() (string, error) {
+	fmt.Print("Enter passphrase: ")
+	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Println("")
+	if err != nil {
+		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
+		return "", err
+	}
+	return string(passphrase), nil
+}
+
+type identify struct {
+	cmd *newTokenCommand
+}
+
+func (i identify) Help() {
+	i.cmd.Help()
+}
+
+func (i identify) Flags(f *flag.FlagSet) {
+	i.cmd.Flags(f)
+}
+
+func (i identify) Command(ctx context.Context) int {
+	return i.cmd.Command(ctx)
+}
+
+func (identify) Subcommands() cli.CLI {
+	return map[string]cli.Command{
+		"new":    &newCommand{},
+		"delete": &deleteCommand{},
+		"listen": &listenCommand{},
+	}
+}
+
 func main() {
-	if len(os.Args) < 2 {
-		help()
-		os.Exit(1)
-	}
-
-	switch command := os.Args[1]; command {
-	case "new-identity":
-		newIdentity()
-	case "log-out":
-		deleteToken()
-	case "listen":
-		listen()
-	case "help":
-		help()
-	default:
-		newToken()
-	}
-}
-
-func newIdentity() {
-	validateDBPath()
-
-	store, err := identify.NewLocalStore(dbPath)
-	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer store.Close()
-
-	fmt.Print("Enter passphrase: ")
-	key, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println("")
-	if err != nil {
-		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
-		os.Exit(1)
-	}
-
-	id, err := store.New(string(key))
-	if err != nil {
-		fmt.Printf("Error while creating new identity.\n%s\n", err.Error())
-		os.Exit(1)
-	}
-
-	fmt.Printf("New identity created: %s\n", id)
-}
-
-func authenticate(id string) identify.Identity {
-	fmt.Print("Enter passphrase: ")
-	key, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println("")
-	if err != nil {
-		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
-		return nil
-	}
-
-	validateDBPath()
-	store, err := identify.NewLocalStore(dbPath)
-	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
-		fmt.Println(err.Error())
-		return nil
-	}
-	defer store.Close()
-
-	i, err := store.Get(id)
-	if err != nil {
-		return nil
-	}
-
-	if !i.Authenticate(string(key)) {
-		return nil
-	}
-
-	return i
-}
-
-func newToken() {
-	flags := flag.NewFlagSet("new-token", flag.ExitOnError)
-	var id = flags.String("id", "", "identity to authenticate")
-	flags.Parse(os.Args[2:])
-
-	if len(*id) == 0 {
-		fmt.Println("an identity must be provided to authenticate")
-		os.Exit(1)
-	}
-
-	i := authenticate(*id)
-	if i == nil {
-		fmt.Println("unable to authenticate")
-		os.Exit(1)
-	}
-
-	validateTokenSecret()
-	validateTokenDBPath()
-
-	tokenStore, err := identify.NewLocalTokenStore(tokenDBPath, tokenSecret)
-	if err != nil {
-		fmt.Printf("An error occurred while opening token database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer tokenStore.Close()
-
-	access, refresh, err := tokenStore.New(i)
-	if err != nil {
-		fmt.Printf("An error occurred while generating token:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-
-	fmt.Printf("Access Token: %s\n%s\n", access.ID(), access.String())
-	fmt.Println("")
-	fmt.Printf("Refresh Token: %s\n%s\n", refresh.ID(), refresh.String())
-}
-
-func deleteToken() {
-	flags := flag.NewFlagSet("delete-token", flag.ExitOnError)
-	var id = flags.String("id", "", "identity to authenticate")
-	var tokenID = flags.String("token-id", "", "id of token to delete")
-	flags.Parse(os.Args[2:])
-
-	if len(*id) == 0 {
-		fmt.Println("an identity must be provided to authenticate")
-		os.Exit(1)
-	}
-
-	validateTokenSecret()
-	validateTokenDBPath()
-
-	i := authenticate(*id)
-	if i == nil {
-		fmt.Println("unable to authenticate")
-		os.Exit(1)
-	}
-
-	tokenStore, err := identify.NewLocalTokenStore(tokenDBPath, tokenSecret)
-	if err != nil {
-		fmt.Println("An error occurred while opening token database file:")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer tokenStore.Close()
-
-	if err := tokenStore.Delete(i.String(), *tokenID); err != nil {
-		fmt.Println("An error occurred while deleting token:")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-
-	fmt.Println("Token successfully deleted")
-}
-
-func listen() {
-	validateAddress()
-	validateTokenSecret()
-	validateDBPath()
-	validateTokenDBPath()
-
-	store, err := identify.NewLocalStore(dbPath)
-	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer store.Close()
-
-	tokenStore, err := identify.NewLocalTokenStore(tokenDBPath, tokenSecret)
-	if err != nil {
-		fmt.Printf("An error occurred while opening token database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer tokenStore.Close()
-
-	server := identify.NewHTTPServer(
-		identify.HTTPServerConfig{address, realm, store, tokenStore})
-
-	fmt.Printf("Identity API listening for HTTP requests on %s...\n", address)
-	log.Fatal(server.ListenAndServe())
+	os.Exit(cli.Main("identify", &identify{&newTokenCommand{}}))
 }

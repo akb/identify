@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package identify
+package http
 
 import (
 	"context"
@@ -24,6 +24,9 @@ import (
 	"mime"
 	"net/http"
 	"strings"
+
+	"github.com/akb/identify/internal/identity"
+	"github.com/akb/identify/internal/token"
 )
 
 type NewIdentityRequest struct {
@@ -39,24 +42,24 @@ type NewTokenResponse struct {
 	Refresh string `json:"refresh"`
 }
 
-type HTTPServerConfig struct {
+type ServerConfig struct {
 	Addr  string
 	Realm string
 
-	Store      Store
-	TokenStore TokenStore
+	IdentityStore identity.Store
+	TokenStore    token.Store
 }
 
 type api struct {
-	HTTPServerConfig
+	ServerConfig
 
 	auth AuthProvider
 }
 
-func NewHTTPServer(c HTTPServerConfig) *http.Server {
+func NewServer(c ServerConfig) *http.Server {
 	return &http.Server{
 		Addr:    c.Addr,
-		Handler: api{c, AuthProvider{c.Realm, c.Store, c.TokenStore}},
+		Handler: api{c, AuthProvider{c.Realm, c.IdentityStore, c.TokenStore}},
 	}
 }
 
@@ -108,7 +111,7 @@ func (a api) new(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := a.Store.New(key)
+	id, err := a.IdentityStore.New(key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -164,10 +167,10 @@ func (a api) deleteToken(w http.ResponseWriter, r *http.Request) {
 }
 
 type AuthProvider struct {
-	realm string
+	Realm string
 
-	store      Store
-	tokenStore TokenStore
+	IdentityStore identity.Store
+	TokenStore    token.Store
 }
 
 type contextKey string
@@ -177,20 +180,20 @@ const (
 	tokenContextKey    = contextKey("token")
 )
 
-func IdentityFromContext(ctx context.Context) (Identity, error) {
+func IdentityFromContext(ctx context.Context) (identity.Identity, error) {
 	v := ctx.Value(identityContextKey)
 	if v == nil {
 		return nil, fmt.Errorf("Identity not found in request context")
 	}
-	return v.(Identity), nil
+	return v.(identity.Identity), nil
 }
 
-func TokenFromContext(ctx context.Context) (Token, error) {
+func TokenFromContext(ctx context.Context) (token.Token, error) {
 	v := ctx.Value(tokenContextKey)
 	if v == nil {
 		return nil, fmt.Errorf("Token not found in request context")
 	}
-	return v.(Token), nil
+	return v.(token.Token), nil
 }
 
 func (p AuthProvider) RequireBasicAuth(h http.Handler) http.Handler {
@@ -201,7 +204,7 @@ func (p AuthProvider) RequireBasicAuth(h http.Handler) http.Handler {
 			return
 		}
 
-		identity, err := p.store.Get(id)
+		identity, err := p.IdentityStore.Get(id)
 		if err != nil {
 			p.unauthorizedBasic(w)
 			return
@@ -226,7 +229,7 @@ func (p AuthProvider) RequireTokenAuth(h http.Handler) http.Handler {
 			return
 		}
 
-		token, err := p.tokenStore.Parse(splitHeader[1])
+		token, err := p.TokenStore.Parse(splitHeader[1])
 		if err != nil || !token.Valid() {
 			p.unauthorizedToken(w)
 			return
@@ -238,7 +241,7 @@ func (p AuthProvider) RequireTokenAuth(h http.Handler) http.Handler {
 			return
 		}
 
-		identity, err := p.store.Get(id)
+		identity, err := p.IdentityStore.Get(id)
 		if err != nil {
 			p.unauthorizedToken(w)
 			return
@@ -250,7 +253,7 @@ func (p AuthProvider) RequireTokenAuth(h http.Handler) http.Handler {
 }
 
 func (p AuthProvider) unauthorizedBasic(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", `Basic realm="`+p.realm+`"`)
+	w.Header().Set("WWW-Authenticate", `Basic realm="`+p.Realm+`"`)
 	http.Error(w, "unauthorized", http.StatusUnauthorized)
 }
 

@@ -15,7 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package identify
+package token
+
+import "github.com/akb/identify/internal/identity"
 
 type Token interface {
 	ID() string
@@ -25,8 +27,8 @@ type Token interface {
 	String() string
 }
 
-type TokenStore interface {
-	New(Identity) (Token, Token, error)
+type Store interface {
+	New(identity.Identity) (Token, Token, error)
 	Parse(string) (Token, error)
 	Delete(string, string) error
 	Close()

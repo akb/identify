@@ -1,3 +1,11 @@
+github.com/akb/go-cli v0.0.0-20200705150910-85a20208582d h1:O1O9I8KbbURd/hjxR38lJSdP3rUMORmJcghyqWWOIj4=
+github.com/akb/go-cli v0.0.0-20200705150910-85a20208582d/go.mod h1:6eUx17EVwbvrw7FISdFvsDX+u2OCxQrFDxJBZ8rKLI8=
+github.com/akb/go-cli v0.0.0-20200705153241-2e3b2363fa0c h1:sLOvnr6+5xAEldr4PLkmlns0x3m6Zy6QzG7x/Zo/GkU=
+github.com/akb/go-cli v0.0.0-20200705153241-2e3b2363fa0c/go.mod h1:2Q0aNrHNbdpPDlouQXdBIScbZcZlvfzeDeEnMqPP4Rw=
+github.com/akb/go-cli v0.0.0-20200705162509-c4c9705394bd h1:PEOeIcfNDulsocaU/tfNZ8reDQsGqZskjmZYRk2wHAs=
+github.com/akb/go-cli v0.0.0-20200705162509-c4c9705394bd/go.mod h1:2Q0aNrHNbdpPDlouQXdBIScbZcZlvfzeDeEnMqPP4Rw=
+github.com/akb/go-cli v0.0.0-20200706181545-83daedd558c4 h1:geogACFawblacITXFADXhhWn4Ufabg2QLrDPmDyoT5k=
+github.com/akb/go-cli v0.0.0-20200706181545-83daedd558c4/go.mod h1:2Q0aNrHNbdpPDlouQXdBIScbZcZlvfzeDeEnMqPP4Rw=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/dgrijalva/jwt-go v1.0.2 h1:KPldsxuKGsS2FPWsNeg9ZO18aCrGKujPoWXn2yo+KQM=

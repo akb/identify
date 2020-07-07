@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package identify
+package token
 
 import (
 	"bytes"
@@ -25,15 +25,16 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
+
+	"github.com/akb/identify/internal/identity"
 )
 
 var (
-	accessTokenBucket     = []byte("access-token")
-	accessTokenTTLBucket  = []byte("access-token-ttl")
-	refreshTokenBucket    = []byte("refresh-token")
-	refreshTokenTTLBucket = []byte("refresh-token-ttl")
-	accessMaxAge          = time.Second * 15
-	refreshMaxAge         = time.Hour * 24 * 7
+	tokenBucket      = []byte("token")
+	accessTTLBucket  = []byte("access-ttl")
+	refreshTTLBucket = []byte("refresh-ttl")
+	accessMaxAge     = time.Second * 15
+	refreshMaxAge    = time.Hour * 24 * 7
 )
 
 type jwToken struct {
@@ -75,19 +76,19 @@ func (t *jwToken) String() string {
 	return s
 }
 
-type localTokenStore struct {
+type localStore struct {
 	db     *bolt.DB
 	secret string
 	done   chan struct{}
 }
 
-func NewLocalTokenStore(dbPath, secret string) (*localTokenStore, error) {
+func NewLocalStore(dbPath, secret string) (*localStore, error) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}
 
-	store := localTokenStore{db, secret, make(chan struct{})}
+	store := localStore{db, secret, make(chan struct{})}
 
 	go func() {
 		var timer *time.Timer = time.NewTimer(time.Minute)
@@ -106,13 +107,13 @@ func NewLocalTokenStore(dbPath, secret string) (*localTokenStore, error) {
 	return &store, nil
 }
 
-func (s *localTokenStore) Close() {
+func (s *localStore) Close() {
 	s.done <- struct{}{}
 	s.sweep() // TODO: handle error
 	s.db.Close()
 }
 
-func (s *localTokenStore) Parse(unparsed string) (Token, error) {
+func (s *localStore) Parse(unparsed string) (Token, error) {
 	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
@@ -125,7 +126,7 @@ func (s *localTokenStore) Parse(unparsed string) (Token, error) {
 	return &jwToken{token, s.secret}, nil
 }
 
-func (s *localTokenStore) New(identity Identity) (Token, Token, error) {
+func (s *localStore) New(identity identity.Identity) (Token, Token, error) {
 	id := identity.String()
 
 	accessUUID, err := uuid.NewRandom()
@@ -163,10 +164,10 @@ func (s *localTokenStore) New(identity Identity) (Token, Token, error) {
 			key    string
 			value  string
 		}{
-			{accessTokenBucket, accessID, id},
-			{accessTokenTTLBucket, ts, accessID},
-			{refreshTokenBucket, refreshID, id},
-			{refreshTokenTTLBucket, ts, refreshID},
+			{tokenBucket, accessID, id},
+			{tokenBucket, refreshID, id},
+			{accessTTLBucket, ts, accessID},
+			{refreshTTLBucket, ts, refreshID},
 		} {
 			b, err := tx.CreateBucketIfNotExists(g.bucket)
 			if err = b.Put([]byte(g.key), []byte(g.value)); err != nil {
@@ -181,9 +182,9 @@ func (s *localTokenStore) New(identity Identity) (Token, Token, error) {
 	return &jwToken{at, s.secret}, &jwToken{rt, s.secret}, nil
 }
 
-func (s *localTokenStore) Delete(identity, id string) error {
+func (s *localStore) Delete(identity, id string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(accessTokenBucket)
+		b := tx.Bucket(tokenBucket)
 		if string(b.Get([]byte(id))) == identity {
 			return b.Delete([]byte(id))
 		}
@@ -191,16 +192,16 @@ func (s *localTokenStore) Delete(identity, id string) error {
 	})
 }
 
-func (s *localTokenStore) sweep() error {
+func (s *localStore) sweep() error {
 	var atk, attk, rtk, rttk [][]byte
 	var err error
 
-	atk, attk, err = s.getExpiredTokens(accessTokenTTLBucket, accessMaxAge)
+	atk, attk, err = s.getExpiredTokens(accessTTLBucket, accessMaxAge)
 	if err != nil {
 		return err
 	}
 
-	rtk, rttk, err = s.getExpiredTokens(refreshTokenTTLBucket, refreshMaxAge)
+	rtk, rttk, err = s.getExpiredTokens(refreshTTLBucket, refreshMaxAge)
 	if err != nil {
 		return err
 	}
@@ -214,10 +215,10 @@ func (s *localTokenStore) sweep() error {
 			*bolt.Bucket
 			keys [][]byte
 		}{
-			{tx.Bucket(accessTokenBucket), atk},
-			{tx.Bucket(accessTokenTTLBucket), attk},
-			{tx.Bucket(refreshTokenBucket), rtk},
-			{tx.Bucket(refreshTokenTTLBucket), rttk},
+			{tx.Bucket(tokenBucket), atk},
+			{tx.Bucket(accessTTLBucket), attk},
+			{tx.Bucket(tokenBucket), rtk},
+			{tx.Bucket(refreshTTLBucket), rttk},
 		} {
 			for _, key := range b.keys {
 				if err = b.Delete(key); err != nil {
@@ -229,7 +230,7 @@ func (s *localTokenStore) sweep() error {
 	})
 }
 
-func (s *localTokenStore) getExpiredTokens(
+func (s *localStore) getExpiredTokens(
 	bucket []byte, maxAge time.Duration) ([][]byte, [][]byte, error) {
 	keys := [][]byte{}
 	ttlKeys := [][]byte{}

@@ -15,12 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package identify
+package identity
 
 import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -53,6 +55,10 @@ type localStore struct {
 }
 
 func NewLocalStore(dbPath string) (*localStore, error) {
+	if _, err := os.Stat(filepath.Dir(dbPath)); os.IsNotExist(err) {
+		os.Mkdir(filepath.Dir(dbPath), 0755)
+	}
+
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
@@ -137,4 +143,13 @@ func (s *localStore) Get(id string) (Identity, error) {
 	}
 
 	return &identity, nil
+}
+
+func (s *localStore) Authenticate(id, passphrase string) bool {
+	identity, err := s.Get(id)
+	if err != nil {
+		return false
+	}
+
+	return !identity.Authenticate(string(passphrase))
 }
