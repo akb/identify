@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
+	"io/ioutil"
 
 	"github.com/akb/go-cli"
 
@@ -12,6 +13,11 @@ import (
 	"github.com/akb/identify/internal/identity"
 	"github.com/akb/identify/internal/token"
 )
+
+type Credentials struct {
+	Access  string `json:"access"`
+	Refresh string `json:"refresh"`
+}
 
 type newTokenCommand struct {
 	id *string
@@ -26,13 +32,19 @@ func (newTokenCommand) Help() {
 	fmt.Println("")
 	fmt.Println("Environment Variables:")
 	fmt.Println("")
-	fmt.Println("IDENTITY_DB_PATH")
+	fmt.Println("IDENTIFY_DB_PATH")
 	fmt.Println("- path to identity database file")
 	fmt.Println("- default: $HOME/.identify/identity.db")
-	fmt.Println("IDENTITY_TOKEN_DB_PATH")
+	fmt.Println("")
+	fmt.Println("IDENTIFY_CREDENTIALS_PATH")
+	fmt.Println("- path to save credentials file as")
+	fmt.Println("- default: $HOME/.identify/credentials.json")
+	fmt.Println("")
+	fmt.Println("IDENTIFY_TOKEN_DB_PATH")
 	fmt.Println("- path to token database file")
 	fmt.Println("- default: $HOME/.identify/token.db")
-	fmt.Println("IDENTITY_TOKEN_SECRET")
+	fmt.Println("")
+	fmt.Println("IDENTIFY_TOKEN_SECRET")
 	fmt.Println("- secret key used to sign tokens")
 }
 
@@ -46,7 +58,25 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
+	credsPath, err := config.GetCredentialsPath()
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
 	dbPath, err := config.GetDBPath()
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	tokenSecret, err := config.GetTokenSecret()
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	tokenDBPath, err := config.GetTokenDBPath()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
@@ -77,36 +107,32 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	tokenSecret, err := config.GetTokenSecret()
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	tokenDBPath, err := config.GetTokenDBPath()
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
 	tokenStore, err := token.NewLocalStore(tokenDBPath, tokenSecret)
 	if err != nil {
-		fmt.Printf("An error occurred while opening token database file:\n")
 		fmt.Println(err.Error())
-		os.Exit(1)
+		return 1
 	}
 	defer tokenStore.Close()
 
 	access, refresh, err := tokenStore.New(i)
 	if err != nil {
-		fmt.Printf("An error occurred while generating token:\n")
 		fmt.Println(err.Error())
-		os.Exit(1)
+		return 1
 	}
 
-	fmt.Printf("Access Token: %s\n%s\n", access.ID(), access.String())
-	fmt.Println("")
-	fmt.Printf("Refresh Token: %s\n%s\n", refresh.ID(), refresh.String())
+	creds := Credentials{access.String(), refresh.String()}
+	credsJSON, err := json.MarshalIndent(creds, "", "  ")
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	if err = ioutil.WriteFile(credsPath, credsJSON, 0600); err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	fmt.Println("Authentication succeeded.")
 	return 0
 }
 

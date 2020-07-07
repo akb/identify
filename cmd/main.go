@@ -20,7 +20,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/akb/go-cli"

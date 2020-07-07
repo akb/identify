@@ -24,7 +24,7 @@ import (
 )
 
 func GetHTTPAddress() string {
-	address := os.Getenv("IDENTITY_HTTP_ADDRESS")
+	address := os.Getenv("IDENTIFY_HTTP_ADDRESS")
 	if len(address) == 0 {
 		return ":8080"
 	}
@@ -32,7 +32,7 @@ func GetHTTPAddress() string {
 }
 
 func GetRealm() string {
-	realm := os.Getenv("IDENTITY_REALM")
+	realm := os.Getenv("IDENTIFY_REALM")
 	if len(realm) == 0 {
 		return "localhost"
 	}
@@ -40,21 +40,34 @@ func GetRealm() string {
 }
 
 func GetTokenSecret() (string, error) {
-	tokenSecret := os.Getenv("IDENTITY_TOKEN_SECRET")
+	tokenSecret := os.Getenv("IDENTIFY_TOKEN_SECRET")
 	if len(tokenSecret) == 0 {
 		return "", fmt.Errorf("An secret key to sign tokens with must be " +
-			"provided by the environment variable IDENTITY_TOKEN_SECRET.")
+			"provided by the environment variable IDENTIFY_TOKEN_SECRET.")
 	}
 	return tokenSecret, nil
 }
 
+func GetCredentialsPath() (string, error) {
+	credsPath := os.Getenv("IDENTIFY_CREDENTIALS_PATH")
+	if len(credsPath) == 0 {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("A path to a credentials file must be provided" +
+				"by the environment variable IDENTIFY_CREDENTIALS_PATH.")
+		}
+		return path.Join(home, ".identify", "credentials.json"), nil
+	}
+	return credsPath, nil
+}
+
 func GetDBPath() (string, error) {
-	dbPath := os.Getenv("IDENTITY_DB_PATH")
+	dbPath := os.Getenv("IDENTIFY_DB_PATH")
 	if len(dbPath) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("A path to an identity database file must be " +
-				"provided by the environment variable IDENTITY_DB_PATH.")
+				"provided by the environment variable IDENTIFY_DB_PATH.")
 		}
 		return path.Join(home, ".identify", "identity.db"), nil
 	}
@@ -62,12 +75,12 @@ func GetDBPath() (string, error) {
 }
 
 func GetTokenDBPath() (string, error) {
-	tokenDBPath := os.Getenv("IDENTITY_TOKEN_DB_PATH")
+	tokenDBPath := os.Getenv("IDENTIFY_TOKEN_DB_PATH")
 	if len(tokenDBPath) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("A path to an identity database file must be " +
-				"provided by the environment variable IDENTITY_TOKEN_DB_PATH.")
+				"provided by the environment variable IDENTIFY_TOKEN_DB_PATH.")
 		}
 		return path.Join(home, ".identify", "token.db"), nil
 	}
