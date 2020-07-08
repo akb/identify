@@ -37,45 +37,6 @@ var (
 	refreshMaxAge    = time.Hour * 24 * 7
 )
 
-type jwToken struct {
-	*jwt.Token
-	secret string
-}
-
-func (t *jwToken) GetClaim(key string) string {
-	claims, ok := t.Token.Claims.(jwt.MapClaims)
-	if !ok {
-		return ""
-	}
-
-	value, ok := claims[key].(string)
-	if !ok {
-		return ""
-	}
-
-	return value
-}
-
-func (t *jwToken) ID() string {
-	return t.GetClaim("jti")
-}
-
-func (t *jwToken) Identity() string {
-	return t.GetClaim("identity")
-}
-
-func (t *jwToken) Valid() bool {
-	return t.Token.Valid
-}
-
-func (t *jwToken) String() string {
-	s, err := t.SignedString([]byte(t.secret))
-	if err != nil {
-		return ""
-	}
-	return s
-}
-
 type localStore struct {
 	db     *bolt.DB
 	secret string
@@ -114,16 +75,7 @@ func (s *localStore) Close() {
 }
 
 func (s *localStore) Parse(unparsed string) (Token, error) {
-	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
-		}
-		return []byte(s.secret), nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &jwToken{token, s.secret}, nil
+	return Parse(unparsed, s.secret)
 }
 
 func (s *localStore) New(identity identity.Identity) (Token, Token, error) {

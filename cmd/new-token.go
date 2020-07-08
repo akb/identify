@@ -84,11 +84,17 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
 		fmt.Println(err.Error())
 		return 1
 	}
 	defer store.Close()
+
+	tokenStore, err := token.NewLocalStore(tokenDBPath, tokenSecret)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+	defer tokenStore.Close()
 
 	i, err := store.Get(*c.id)
 	if err != nil {
@@ -106,13 +112,6 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 		fmt.Println("unable to authenticate")
 		return 1
 	}
-
-	tokenStore, err := token.NewLocalStore(tokenDBPath, tokenSecret)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-	defer tokenStore.Close()
 
 	access, refresh, err := tokenStore.New(i)
 	if err != nil {

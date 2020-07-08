@@ -17,7 +17,12 @@
 
 package token
 
-import "github.com/akb/identify/internal/identity"
+import (
+	"fmt"
+
+	"github.com/akb/identify/internal/identity"
+	"github.com/dgrijalva/jwt-go"
+)
 
 type Token interface {
 	ID() string
@@ -32,4 +37,56 @@ type Store interface {
 	Parse(string) (Token, error)
 	Delete(string, string) error
 	Close()
+}
+
+type jwToken struct {
+	*jwt.Token
+	secret string
+}
+
+func Parse(unparsed, secret string) (Token, error) {
+	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &jwToken{token, secret}, nil
+}
+
+func (t *jwToken) GetClaim(key string) string {
+	claims, ok := t.Token.Claims.(jwt.MapClaims)
+	if !ok {
+		return ""
+	}
+
+	value, ok := claims[key].(string)
+	if !ok {
+		return ""
+	}
+
+	return value
+}
+
+func (t *jwToken) ID() string {
+	return t.GetClaim("jti")
+}
+
+func (t *jwToken) Identity() string {
+	return t.GetClaim("identity")
+}
+
+func (t *jwToken) Valid() bool {
+	return t.Token.Valid
+}
+
+func (t *jwToken) String() string {
+	s, err := t.SignedString([]byte(t.secret))
+	if err != nil {
+		return ""
+	}
+	return s
 }

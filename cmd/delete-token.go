@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/akb/go-cli"
 
 	"github.com/akb/identify/cmd/config"
-	"github.com/akb/identify/internal/identity"
 	"github.com/akb/identify/internal/token"
 )
 
@@ -22,7 +23,7 @@ func (deleteTokenCommand) Help() {
 	fmt.Println("")
 	fmt.Println("Usage: identify delete token <id>")
 	fmt.Println("")
-	fmt.Println("Delete a token. Authorization may be required.")
+	fmt.Println("Delete a token.")
 }
 
 func (c *deleteTokenCommand) Flags(f *flag.FlagSet) {
@@ -31,40 +32,6 @@ func (c *deleteTokenCommand) Flags(f *flag.FlagSet) {
 }
 
 func (c deleteTokenCommand) Command(ctx context.Context) int {
-	if len(*c.id) == 0 {
-		fmt.Println("an identity must be provided to authenticate")
-		return 1
-	}
-
-	dbPath, err := config.GetDBPath()
-	if err != nil {
-		fmt.Println(err)
-		return 1
-	}
-
-	store, err := identity.NewLocalStore(dbPath)
-	if err != nil {
-		fmt.Println(err)
-		return 1
-	}
-
-	passphrase, err := promptForPassphrase()
-	if err != nil {
-		fmt.Println(err)
-		return 1
-	}
-
-	identity, err := store.Get(*c.id)
-	if err != nil {
-		fmt.Println(err)
-		return 1
-	}
-
-	if !identity.Authenticate(passphrase) {
-		fmt.Println("unable to authenticate")
-		return 1
-	}
-
 	tokenSecret, err := config.GetTokenSecret()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -85,8 +52,49 @@ func (c deleteTokenCommand) Command(ctx context.Context) int {
 	}
 	defer tokenStore.Close()
 
-	if err := tokenStore.Delete(identity.String(), *c.tokenID); err != nil {
-		fmt.Println("An error occurred while deleting token:")
+	var id, tokenID string
+	if len(*c.id) > 0 && len(*c.tokenID) > 0 {
+		id = *c.id
+		tokenID = *c.tokenID
+
+	} else if len(*c.id) > 0 || len(*c.tokenID) > 0 {
+		fmt.Println("both an identity and a token must be specified")
+		return 1
+
+	} else {
+		credsPath, err := config.GetCredentialsPath()
+		if err != nil {
+			println("error getting credentials path")
+			fmt.Println(err)
+			return 1
+		}
+
+		credsJSON, err := ioutil.ReadFile(credsPath)
+		if err != nil {
+			fmt.Println(err)
+			return 1
+		}
+
+		var creds Credentials
+		err = json.Unmarshal(credsJSON, &creds)
+		if err != nil {
+			println("error unmarshaling creds json")
+			fmt.Println(err)
+			return 1
+		}
+
+		t, err := token.Parse(creds.Access, tokenSecret)
+		if err != nil {
+			println("error parsing token")
+			fmt.Println(err)
+			return 1
+		}
+
+		id = t.Identity()
+		tokenID = t.ID()
+	}
+
+	if err := tokenStore.Delete(id, tokenID); err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
@@ -96,7 +104,5 @@ func (c deleteTokenCommand) Command(ctx context.Context) int {
 }
 
 func (deleteTokenCommand) Subcommands() cli.CLI {
-	return cli.CLI{
-		"token": &deleteTokenCommand{},
-	}
+	return nil
 }
