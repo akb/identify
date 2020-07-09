@@ -19,6 +19,8 @@ package identity
 
 type Identity interface {
 	Authenticate(string) bool
+	Encrypt(string) (string, string, error)
+	Decrypt(string, string) (string, error)
 	String() string
 }
 

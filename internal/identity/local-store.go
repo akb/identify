@@ -19,7 +19,6 @@ package identity
 
 import (
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -32,23 +31,6 @@ import (
 var (
 	identityBucket = []byte("identity")
 )
-
-type localIdentity struct {
-	ID   string `json:"id"`
-	Salt string `json:"salt"`
-	Key  []byte `json:"key"`
-}
-
-func (l localIdentity) Authenticate(key string) bool {
-	hash := sha256.New()
-	hash.Write([]byte(l.ID))
-	hash.Write([]byte(l.Salt))
-	return subtle.ConstantTimeCompare(l.Key, hash.Sum([]byte(key))) == 1
-}
-
-func (l localIdentity) String() string {
-	return l.ID
-}
 
 type localStore struct {
 	db *bolt.DB
@@ -71,7 +53,7 @@ func (s *localStore) Close() {
 	s.db.Close()
 }
 
-func (s *localStore) New(key string) (Identity, error) {
+func (s *localStore) New(passphrase string) (Identity, error) {
 	var err error
 
 	id, err := uuid.NewRandom()
@@ -89,9 +71,9 @@ func (s *localStore) New(key string) (Identity, error) {
 	hash.Write([]byte(salt.String()))
 
 	identity := localIdentity{
-		ID:   id.String(),
-		Salt: salt.String(),
-		Key:  hash.Sum([]byte(key)),
+		ID:         id.String(),
+		Salt:       salt.String(),
+		Passphrase: hash.Sum([]byte(passphrase)),
 	}
 
 	err = s.db.Update(func(tx *bolt.Tx) error {
@@ -138,7 +120,7 @@ func (s *localStore) Get(id string) (Identity, error) {
 		return nil, err
 	}
 
-	if identity.Key == nil {
+	if identity.Passphrase == nil {
 		return nil, nil
 	}
 
