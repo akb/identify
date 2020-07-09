@@ -15,13 +15,13 @@ production ready.
 
 ## CLI
 
-`identify new-identity`
+`identify new identity`
 - creates a new identity
 
-`identify`
+`identify | identify new token`
 - authenticates an identity and generates access and refresh tokens
 
-`identify log-out`
+`identify delete token`
 - deletes access tokens
 
 `identify listen`
@@ -46,15 +46,39 @@ production ready.
 - Requires Token auth
 - Deletes authenticated access token
 
-## Auth Flow
+## HMAC Auth Flow
 
+                       Shared Secret Key
+                               |
+          _____________________|_________________________
+         |                     |                         |
     +----------+        +-------------+             +---------+
     | Identity |        | Auth Server |             | Service |
     +----------+        +-------------+             +---------+
          |                     |                         |
-         |                     +--- request public key <-|
+         +-> navigates to -----+                         |
          |                     |                         |
-         |                     +-> provide public key ---+
+         |               authenticates                   |
+         |                     |                         |
+         +--- provides token <-+                         |
+         |                                               |
+         +-> request service, providing token -----------+
+                                                         |
+                                               verifies token origin
+                                                         |
+                                                 provides service
+
+## ECDSA Auth Flow
+
+                           Secret Key
+                               |
+    +----------+        +-------------+             +---------+
+    | Identity |        | Auth Server |             | Service |
+    +----------+        +-------------+             +---------+
+         |                     |                         |
+         |                     +-- requests public key <-+
+         |                     |                         |
+         |                     +-> provides public key --+
          |                     |                         |
          +-> navigates to -----+                         |
          |                     |                         |
