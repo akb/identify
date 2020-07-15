@@ -19,18 +19,70 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
+	"fmt"
 
 	"github.com/akb/go-cli"
+	"github.com/akb/identify"
+	"github.com/akb/identify/cmd/config"
+	"github.com/akb/identify/internal/identity"
 )
 
-type openCommand struct{}
+type openCommand struct {
+	message *string
+}
 
 func (openCommand) Help() {}
 
-func (openCommand) Flags(f *flag.FlagSet) {}
+func (c *openCommand) Flags(f *flag.FlagSet) {
+	c.message = f.String("message", "", "sealed message to open")
+}
 
-func (openCommand) Command(ctx context.Context) int { return 1 }
+func (c openCommand) Command(ctx context.Context) int {
+	token := identify.TokenFromContext(ctx)
+	if token == nil {
+		fmt.Println("unauthorized")
+		return 1
+	}
+
+	dbPath, err := config.GetDBPath()
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	store, err := identity.NewLocalStore(dbPath)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	i, err := store.Get(token.Identity())
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	sealed, err := base64.RawStdEncoding.DecodeString(*c.message)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	sealedBytes := []byte(sealed)
+	nonce := sealedBytes[0:12]
+	encrypted := sealedBytes[12:]
+
+	message, err := i.DecryptString(nonce, encrypted)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	fmt.Println(message)
+	return 0
+}
 
 func (openCommand) Subcommands() cli.CLI {
 	return nil

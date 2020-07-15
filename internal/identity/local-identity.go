@@ -68,20 +68,20 @@ func (l localIdentity) EncryptString(message string) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	nonce := make([]byte, 12)
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	aesgcm, err := cipher.NewGCM(c)
+	if err != nil {
 		return nil, nil, err
 	}
 
-	aesgcm, err := cipher.NewGCM(c)
-	if err != nil {
+	nonce := make([]byte, aesgcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, nil, err
 	}
 
 	return nonce, aesgcm.Seal(nil, nonce, []byte(message), nil), nil
 }
 
-func (l localIdentity) DecryptString(encrypted, nonce []byte) (string, error) {
+func (l localIdentity) DecryptString(nonce, encrypted []byte) (string, error) {
 	c, err := aes.NewCipher(l.Passphrase[:32])
 	if err != nil {
 		return "", err

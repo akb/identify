@@ -33,7 +33,7 @@ var (
 	tokenBucket      = []byte("token")
 	accessTTLBucket  = []byte("access-ttl")
 	refreshTTLBucket = []byte("refresh-ttl")
-	accessMaxAge     = time.Second * 15
+	accessMaxAge     = time.Minute * 5
 	refreshMaxAge    = time.Hour * 24 * 7
 )
 

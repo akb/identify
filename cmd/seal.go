@@ -34,7 +34,12 @@ type sealCommand struct {
 	message *string
 }
 
-func (sealCommand) Help() {}
+func (sealCommand) Help() {
+	fmt.Println("identify seal - seal a message with a passphrase")
+	fmt.Println("")
+	fmt.Println("Usage: identify seal -message=\"message to seal\"")
+	fmt.Println("")
+}
 
 func (c *sealCommand) Flags(f *flag.FlagSet) {
 	c.message = f.String("message", "", "message to seal")
@@ -71,10 +76,9 @@ func (c sealCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	nonce := base64.StdEncoding.EncodeToString(nonceBytes)
-	sealed := base64.StdEncoding.EncodeToString(sealedBytes)
-
-	fmt.Printf("%s.%s", nonce, sealed)
+	message := append(nonceBytes, sealedBytes...)
+	sealed := base64.RawStdEncoding.EncodeToString(message)
+	fmt.Println(sealed)
 	return 0
 }
 
