@@ -39,13 +39,13 @@ func GetRealm() string {
 	return realm
 }
 
-func GetTokenSecret() (string, error) {
+func GetTokenSecret() ([]byte, error) {
 	tokenSecret := os.Getenv("IDENTIFY_TOKEN_SECRET")
 	if len(tokenSecret) == 0 {
-		return "", fmt.Errorf("An secret key to sign tokens with must be " +
+		return []byte{}, fmt.Errorf("An secret key to sign tokens with must be " +
 			"provided by the environment variable IDENTIFY_TOKEN_SECRET.")
 	}
-	return tokenSecret, nil
+	return []byte(tokenSecret), nil
 }
 
 func GetCredentialsPath() (string, error) {

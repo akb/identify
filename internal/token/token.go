@@ -19,10 +19,18 @@ package token
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/akb/identify/internal/identity"
 	"github.com/dgrijalva/jwt-go"
 )
+
+var listPattern = regexp.MustCompile(`[^\s]+`)
+
+type Credentials struct {
+	Access  string `json:"access"`
+	Refresh string `json:"refresh"`
+}
 
 type Token interface {
 	ID() string
@@ -30,6 +38,7 @@ type Token interface {
 	GetClaim(string) string
 	Valid() bool
 	String() string
+	HasPermission(string) bool
 }
 
 type Store interface {
@@ -41,10 +50,10 @@ type Store interface {
 
 type jwToken struct {
 	*jwt.Token
-	secret string
+	secret []byte
 }
 
-func Parse(unparsed, secret string) (Token, error) {
+func Parse(unparsed string, secret []byte) (Token, error) {
 	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
@@ -69,6 +78,21 @@ func (t *jwToken) GetClaim(key string) string {
 	}
 
 	return value
+}
+
+func (t *jwToken) HasPermission(name string) bool {
+	unparsed := t.GetClaim("permissions")
+	if len(name) == 0 {
+		return false
+	}
+
+	permissions := listPattern.FindAllString(unparsed, -1)
+	for _, p := range permissions {
+		if p == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *jwToken) ID() string {

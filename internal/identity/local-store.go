@@ -18,7 +18,6 @@
 package identity
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -53,48 +52,27 @@ func (s *localStore) Close() {
 	s.db.Close()
 }
 
-func (s *localStore) New(passphrase string) (Identity, error) {
-	var err error
-
-	id, err := uuid.NewRandom()
+func (s *localStore) New(passphrase string) (identity Identity, err error) {
+	identity, err = NewLocalIdentity(passphrase)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	salt, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
-	}
-
-	hash := sha256.New()
-	hash.Write([]byte(id.String()))
-	hash.Write([]byte(salt.String()))
-
-	identity := localIdentity{
-		ID:         id.String(),
-		Salt:       salt.String(),
-		Passphrase: hash.Sum([]byte(passphrase)),
-	}
-
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Update(func(tx *bolt.Tx) (err error) {
 		b, err := tx.CreateBucketIfNotExists(identityBucket)
 		if err != nil {
-			return err
+			return
 		}
 
 		encoded, err := json.Marshal(identity)
 		if err != nil {
-			return err
+			return
 		}
 
-		return b.Put([]byte(identity.ID), encoded)
+		return b.Put([]byte(identity.String()), encoded)
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &identity, nil
+	return
 }
 
 func (s *localStore) Get(id string) (Identity, error) {

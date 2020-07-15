@@ -26,15 +26,11 @@ import (
 
 	"github.com/akb/go-cli"
 
+	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
 	"github.com/akb/identify/internal/token"
 )
-
-type Credentials struct {
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
-}
 
 type newTokenCommand struct {
 	id *string
@@ -136,7 +132,7 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	creds := Credentials{access.String(), refresh.String()}
+	creds := identify.UnparsedTokenCredentials{access.String(), refresh.String()}
 	credsJSON, err := json.MarshalIndent(creds, "", "  ")
 	if err != nil {
 		fmt.Println(err.Error())

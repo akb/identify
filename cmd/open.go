@@ -15,17 +15,23 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package identity
+package main
 
-type Identity interface {
-	Authenticate(string) bool
-	EncryptString(string) ([]byte, []byte, error)
-	DecryptString([]byte, []byte) (string, error)
-	String() string
-}
+import (
+	"context"
+	"flag"
 
-type Store interface {
-	New(string) (Identity, error)
-	Get(string) (Identity, error)
-	Close()
+	"github.com/akb/go-cli"
+)
+
+type openCommand struct{}
+
+func (openCommand) Help() {}
+
+func (openCommand) Flags(f *flag.FlagSet) {}
+
+func (openCommand) Command(ctx context.Context) int { return 1 }
+
+func (openCommand) Subcommands() cli.CLI {
+	return nil
 }

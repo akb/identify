@@ -24,52 +24,80 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"io"
+
+	"github.com/google/uuid"
 )
 
 type localIdentity struct {
 	ID         string `json:"id"`
 	Salt       string `json:"salt"`
 	Passphrase []byte `json:"passphrase"`
+	AESKey     []byte `json:"aes-key"`
+}
+
+func NewLocalIdentity(passphrase string) (*localIdentity, error) {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return nil, err
+	}
+
+	salt, err := uuid.NewRandom()
+	if err != nil {
+		return nil, err
+	}
+
+	hash := sha256.New()
+	hash.Write([]byte(salt.String()))
+
+	return &localIdentity{
+		ID:         id.String(),
+		Salt:       salt.String(),
+		Passphrase: hash.Sum([]byte(passphrase)),
+	}, nil
 }
 
 func (l localIdentity) Authenticate(passphrase string) bool {
 	hash := sha256.New()
-	hash.Write([]byte(l.ID))
 	hash.Write([]byte(l.Salt))
 	return subtle.ConstantTimeCompare(l.Passphrase, hash.Sum([]byte(passphrase))) == 1
 }
 
-func (l localIdentity) Encrypt(message string) (string, string, error) {
+func (l localIdentity) EncryptString(message string) ([]byte, []byte, error) {
 	c, err := aes.NewCipher(l.Passphrase[:32])
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	nonce := make([]byte, 12)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	aesgcm, err := cipher.NewGCM(c)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
-	return aesgcm.Seal(nil, nonce, message, nil), nonce, nil
+	return nonce, aesgcm.Seal(nil, nonce, []byte(message), nil), nil
 }
 
-func (l localIdentity) Decrypt(message, nonce string) (string, error) {
+func (l localIdentity) DecryptString(encrypted, nonce []byte) (string, error) {
 	c, err := aes.NewCipher(l.Passphrase[:32])
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	aesgcm, err := cipher.NewGCM(c)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
-	return aesgcm.Open(nil, nonce, encrypted, nil)
+	message, err := aesgcm.Open(nil, nonce, encrypted, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(message), nil
 }
 
 func (l localIdentity) String() string {

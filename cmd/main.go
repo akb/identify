@@ -23,32 +23,35 @@ import (
 	"os"
 
 	"github.com/akb/go-cli"
+	"github.com/akb/identify"
 )
 
-type identify struct {
+type identifyCommand struct {
 	cmd *newTokenCommand
 }
 
-func (i identify) Help() {
+func (i identifyCommand) Help() {
 	i.cmd.Help()
 }
 
-func (i identify) Flags(f *flag.FlagSet) {
+func (i identifyCommand) Flags(f *flag.FlagSet) {
 	i.cmd.Flags(f)
 }
 
-func (i identify) Command(ctx context.Context) int {
+func (i identifyCommand) Command(ctx context.Context) int {
 	return i.cmd.Command(ctx)
 }
 
-func (identify) Subcommands() cli.CLI {
+func (identifyCommand) Subcommands() cli.CLI {
 	return map[string]cli.Command{
 		"new":    &newCommand{},
 		"delete": &deleteCommand{},
 		"listen": &listenCommand{},
+		"seal":   identify.RequiresUserAuth(&sealCommand{}),
+		"open":   identify.RequiresUserAuth(&openCommand{}),
 	}
 }
 
 func main() {
-	os.Exit(cli.Main("identify", &identify{&newTokenCommand{}}))
+	os.Exit(cli.Main("identify", &identifyCommand{&newTokenCommand{}}))
 }

@@ -26,6 +26,7 @@ import (
 
 	"github.com/akb/go-cli"
 
+	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/token"
 )
@@ -92,7 +93,7 @@ func (c deleteTokenCommand) Command(ctx context.Context) int {
 			return 1
 		}
 
-		var creds Credentials
+		var creds identify.UnparsedTokenCredentials
 		err = json.Unmarshal(credsJSON, &creds)
 		if err != nil {
 			println("error unmarshaling creds json")

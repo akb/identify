@@ -39,11 +39,11 @@ var (
 
 type localStore struct {
 	db     *bolt.DB
-	secret string
+	secret []byte
 	done   chan struct{}
 }
 
-func NewLocalStore(dbPath, secret string) (*localStore, error) {
+func NewLocalStore(dbPath string, secret []byte) (*localStore, error) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
