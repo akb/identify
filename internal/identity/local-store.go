@@ -19,6 +19,7 @@ package identity
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -26,6 +27,12 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/google/uuid"
 )
+
+type Store interface {
+	New(string) (PublicIdentity, PrivateIdentity, error)
+	Get(string) (PublicIdentity, error)
+	Close()
+}
 
 var (
 	identityBucket = []byte("identity")
@@ -52,45 +59,47 @@ func (s *localStore) Close() {
 	s.db.Close()
 }
 
-func (s *localStore) New(passphrase string) (identity Identity, err error) {
-	identity, err = NewLocalIdentity(passphrase)
+func (s *localStore) New(passphrase string) (PublicIdentity, PrivateIdentity, error) {
+	public, private, err := NewIdentity(passphrase)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 
-	err = s.db.Update(func(tx *bolt.Tx) (err error) {
+	marshaled, err := json.Marshal(public)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = s.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists(identityBucket)
 		if err != nil {
-			return
+			return err
 		}
-
-		encoded, err := json.Marshal(identity)
-		if err != nil {
-			return
-		}
-
-		return b.Put([]byte(identity.String()), encoded)
+		return b.Put([]byte(public.String()), marshaled)
 	})
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return
+	return public, private, nil
 }
 
-func (s *localStore) Get(id string) (Identity, error) {
+func (s *localStore) Get(id string) (PublicIdentity, error) {
 	_, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
 	}
 
-	var identity localIdentity
+	var identity publicIdentity
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(identityBucket)
 		if b == nil {
-			return nil
+			return fmt.Errorf("identity bucket doesn't exist")
 		}
 
 		unparsed := b.Get([]byte(id))
 		if unparsed == nil {
-			return nil
+			return fmt.Errorf("could not find identity for id %s", id)
 		}
 
 		return json.Unmarshal(unparsed, &identity)
@@ -98,18 +107,5 @@ func (s *localStore) Get(id string) (Identity, error) {
 		return nil, err
 	}
 
-	if identity.Passphrase == nil {
-		return nil, nil
-	}
-
 	return &identity, nil
-}
-
-func (s *localStore) Authenticate(id, passphrase string) bool {
-	identity, err := s.Get(id)
-	if err != nil {
-		return false
-	}
-
-	return !identity.Authenticate(string(passphrase))
 }

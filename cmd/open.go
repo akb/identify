@@ -19,7 +19,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 
@@ -30,12 +29,14 @@ import (
 )
 
 type openCommand struct {
+	from    *string
 	message *string
 }
 
 func (openCommand) Help() {}
 
 func (c *openCommand) Flags(f *flag.FlagSet) {
+	c.from = f.String("from", "", "id of message sender")
 	c.message = f.String("message", "", "sealed message to open")
 }
 
@@ -58,23 +59,31 @@ func (c openCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	i, err := store.Get(token.Identity())
+	passphrase, err := promptForPassphrase()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	sealed, err := base64.RawStdEncoding.DecodeString(*c.message)
+	public, err := store.Get(token.Identity())
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	sealedBytes := []byte(sealed)
-	nonce := sealedBytes[0:12]
-	encrypted := sealedBytes[12:]
+	private, err := public.Authenticate(passphrase)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
 
-	message, err := i.DecryptString(nonce, encrypted)
+	from, err := store.Get(*c.from)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	message, err := private.OpenMessage(from, []byte(*c.message))
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1

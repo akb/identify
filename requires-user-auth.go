@@ -56,13 +56,7 @@ func (c requiresUserAuthCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	tokenSecret, err := config.GetTokenSecret()
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	creds, err := LoadTokenCredentials(credsPath, tokenSecret)
+	creds, err := LoadTokenCredentials(credsPath)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1

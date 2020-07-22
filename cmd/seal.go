@@ -31,6 +31,7 @@ import (
 )
 
 type sealCommand struct {
+	to      *string
 	message *string
 }
 
@@ -42,6 +43,7 @@ func (sealCommand) Help() {
 }
 
 func (c *sealCommand) Flags(f *flag.FlagSet) {
+	c.to = f.String("to", "", "id of message recipient")
 	c.message = f.String("message", "", "message to seal")
 }
 
@@ -52,7 +54,18 @@ func (c sealCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
+	if len(*c.to) == 0 || len(*c.message) == 0 {
+		c.Help()
+		return 1
+	}
+
 	dbPath, err := config.GetDBPath()
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	passphrase, err := promptForPassphrase()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
@@ -64,20 +77,31 @@ func (c sealCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	i, err := store.Get(token.Identity())
+	public, err := store.Get(token.Identity())
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	nonceBytes, sealedBytes, err := i.EncryptString(*c.message)
+	private, err := public.Authenticate(passphrase)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	message := append(nonceBytes, sealedBytes...)
-	sealed := base64.RawStdEncoding.EncodeToString(message)
+	to, err := store.Get(*c.to)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	sealedBytes, err := private.SealMessage(to, *c.message)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	sealed := base64.RawStdEncoding.EncodeToString(sealedBytes)
 	fmt.Println(sealed)
 	return 0
 }

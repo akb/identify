@@ -109,30 +109,31 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 	}
 	defer tokenStore.Close()
 
-	i, err := store.Get(*c.id)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
 	passphrase, err := promptForPassphrase()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	if !i.Authenticate(passphrase) {
-		fmt.Println("unable to authenticate")
-		return 1
-	}
-
-	access, refresh, err := tokenStore.New(i)
+	public, err := store.Get(*c.id)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	creds := identify.UnparsedTokenCredentials{access.String(), refresh.String()}
+	private, err := public.Authenticate(passphrase)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	access, refresh, err := tokenStore.New(private)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	creds := identify.UnparsedTokenCredentials{access, refresh}
 	credsJSON, err := json.MarshalIndent(creds, "", "  ")
 	if err != nil {
 		fmt.Println(err.Error())

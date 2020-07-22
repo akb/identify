@@ -40,6 +40,7 @@ func (i identifyCommand) Flags(f *flag.FlagSet) {
 
 func (i identifyCommand) Command(ctx context.Context) int {
 	return i.cmd.Command(ctx)
+	return 1
 }
 
 func (identifyCommand) Subcommands() cli.CLI {

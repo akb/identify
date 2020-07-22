@@ -35,7 +35,7 @@ func (newIdentityCommand) Help() {}
 func (c *newIdentityCommand) Flags(f *flag.FlagSet) {
 }
 
-func (newIdentityCommand) Command(ctx context.Context) int {
+func (c newIdentityCommand) Command(ctx context.Context) int {
 	dbPath, err := config.GetDBPath()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -56,13 +56,13 @@ func (newIdentityCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	id, err := store.New(string(passphrase))
+	public, _, err := store.New(string(passphrase))
 	if err != nil {
 		fmt.Printf("Error while creating new identity.\n%s\n", err.Error())
 		return 1
 	}
 
-	fmt.Printf("New identity created: %s\n", id)
+	fmt.Printf("New identity created: %s\n", public.String())
 	return 0
 }
 

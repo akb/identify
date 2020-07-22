@@ -15,17 +15,32 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package identity
+package auth
 
-type Identity interface {
-	Authenticate(string) bool
-	EncryptString(string) ([]byte, []byte, error)
-	DecryptString([]byte, []byte) (string, error)
-	String() string
+import (
+	"context"
+	"fmt"
+
+	"github.com/akb/identify/internal/identity"
+)
+
+type contextKey string
+
+const (
+	identityContextKey = contextKey("identity")
+)
+
+type Provider struct {
+	Realm string
+
+	IdentityStore identity.Store
+	//TokenStore    token.Store
 }
 
-type Store interface {
-	New(string) (Identity, error)
-	Get(string) (Identity, error)
-	Close()
+func IdentityFromContext(ctx context.Context) (identity.PrivateIdentity, error) {
+	v := ctx.Value(identityContextKey)
+	if v == nil {
+		return nil, fmt.Errorf("Identity not found in request context")
+	}
+	return v.(identity.PrivateIdentity), nil
 }

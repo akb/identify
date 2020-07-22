@@ -15,28 +15,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package token
+package auth
 
 import (
-	"fmt"
-
-	"github.com/dgrijalva/jwt-go"
+	"context"
+	"net/http"
 )
 
-type Credentials struct {
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
+func (p Provider) RequireBasicAuth(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, passphrase, ok := r.BasicAuth()
+		if !ok {
+			p.unauthorizedBasic(w)
+			return
+		}
+
+		public, err := p.IdentityStore.Get(id)
+		if err != nil {
+			p.unauthorizedBasic(w)
+			return
+		}
+
+		private, err := public.Authenticate(passphrase)
+		if err != nil {
+			p.unauthorizedBasic(w)
+			return
+		}
+
+		r = r.WithContext(context.WithValue(r.Context(), identityContextKey, private))
+		h.ServeHTTP(w, r)
+	})
 }
 
-func Parse(unparsed string) (*jwt.Token, error) {
-	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*signingMethodNaCl); !ok {
-			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
-		}
-		return []byte{}, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return token, nil
+func (p Provider) unauthorizedBasic(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="`+p.Realm+`"`)
+	http.Error(w, "unauthorized", http.StatusUnauthorized)
 }

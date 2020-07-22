@@ -83,7 +83,7 @@ func (c listenCommand) Command(ctx context.Context) int {
 	defer tokenStore.Close()
 
 	server := http.NewServer(
-		http.ServerConfig{address, realm, store, tokenStore})
+		http.ServerConfig{address, realm, store}) //, tokenStore})
 
 	fmt.Printf("Identity API listening for HTTP requests on %s...\n", address)
 	log.Fatal(server.ListenAndServe())

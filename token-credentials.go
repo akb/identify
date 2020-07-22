@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
+	"github.com/dgrijalva/jwt-go"
+
 	"github.com/akb/identify/internal/token"
 )
 
@@ -29,8 +31,8 @@ type UnparsedTokenCredentials struct {
 	Refresh string `json:"refresh"`
 }
 
-func (c UnparsedTokenCredentials) Parse(tokenHMACSecret []byte) (*TokenCredentials, error) {
-	access, err := token.Parse(c.Access, tokenHMACSecret)
+func (c UnparsedTokenCredentials) Parse() (*TokenCredentials, error) {
+	access, err := token.Parse(c.Access)
 	if err != nil {
 		return nil, err
 	}
@@ -40,11 +42,11 @@ func (c UnparsedTokenCredentials) Parse(tokenHMACSecret []byte) (*TokenCredentia
 }
 
 type TokenCredentials struct {
-	Access  token.Token
-	Refresh token.Token
+	Access  *jwt.Token
+	Refresh *jwt.Token
 }
 
-func LoadTokenCredentials(credsPath string, tokenHMACSecret []byte) (*TokenCredentials, error) {
+func LoadTokenCredentials(credsPath string) (*TokenCredentials, error) {
 	credsJSON, err := ioutil.ReadFile(credsPath)
 	if err != nil {
 		return nil, err
@@ -55,5 +57,5 @@ func LoadTokenCredentials(credsPath string, tokenHMACSecret []byte) (*TokenCrede
 		return nil, err
 	}
 
-	return creds.Parse(tokenHMACSecret)
+	return creds.Parse()
 }

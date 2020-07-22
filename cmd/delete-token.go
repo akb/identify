@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/dgrijalva/jwt-go"
+
 	"github.com/akb/go-cli"
 
 	"github.com/akb/identify"
@@ -101,15 +103,30 @@ func (c deleteTokenCommand) Command(ctx context.Context) int {
 			return 1
 		}
 
-		t, err := token.Parse(creds.Access, tokenSecret)
+		t, err := token.Parse(creds.Access)
 		if err != nil {
 			println("error parsing token")
 			fmt.Println(err)
 			return 1
 		}
 
-		id = t.Identity()
-		tokenID = t.ID()
+		claims, ok := t.Claims.(jwt.MapClaims)
+		if !ok {
+			fmt.Println("error parsing token")
+			return 1
+		}
+
+		id, ok = claims["identity"].(string)
+		if !ok {
+			fmt.Println("error parsing token")
+			return 1
+		}
+
+		tokenID, ok = claims["jti"].(string)
+		if !ok {
+			fmt.Println("error parsing token")
+			return 1
+		}
 	}
 
 	if err := tokenStore.Delete(id, tokenID); err != nil {
