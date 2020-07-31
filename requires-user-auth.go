@@ -21,15 +21,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"syscall"
+
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/akb/go-cli"
 	"github.com/akb/identify/cmd/config"
-	"github.com/akb/identify/internal/token"
+	"github.com/akb/identify/internal/identity"
 )
 
 type contextKey string
 
-const tokenContextKey = contextKey("token")
+const identityContextKey = contextKey("identity")
 
 func RequiresUserAuth(wrapped cli.Command) cli.Command {
 	return &requiresUserAuthCommand{nil, wrapped}
@@ -49,31 +52,57 @@ func (c *requiresUserAuthCommand) Flags(f *flag.FlagSet) {
 	c.wrapped.Flags(f)
 }
 
-func (c requiresUserAuthCommand) Command(ctx context.Context) int {
-	credsPath, err := config.GetCredentialsPath()
+func (c requiresUserAuthCommand) Command(ctx context.Context, args []string) int {
+	dbPath, err := config.GetDBPath()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	creds, err := LoadTokenCredentials(credsPath)
+	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	return c.wrapped.Command(context.WithValue(ctx, tokenContextKey, creds.Access))
+	public, err := store.GetIdentity(*c.id)
+	store.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	fmt.Print("Enter passphrase: ")
+	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Println("")
+	if err != nil {
+		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
+		return 1
+	}
+
+	private, err := public.Authenticate(string(passphrase))
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+
+	ctx = context.WithValue(ctx, identityContextKey, private)
+
+	return c.wrapped.Command(ctx, args)
 }
 
 func (c requiresUserAuthCommand) Subcommands() cli.CLI {
-	return c.Subcommands()
+	if b, ok := (interface{})(c.wrapped).(cli.HasSubcommands); ok {
+		return b.Subcommands()
+	}
+	return nil
 }
 
-func TokenFromContext(ctx context.Context) (t token.Token) {
-	if v := ctx.Value(tokenContextKey); v != nil {
-		if t, ok := v.(token.Token); ok {
-			return t
+func IdentityFromContext(ctx context.Context) identity.PrivateIdentity {
+	if v := ctx.Value(identityContextKey); v != nil {
+		if p, ok := v.(identity.PrivateIdentity); ok {
+			return p
 		}
 	}
-	return
+	return nil
 }

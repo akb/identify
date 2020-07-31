@@ -23,8 +23,6 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/akb/go-cli"
-
 	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
@@ -48,8 +46,8 @@ func (c *sealCommand) Flags(f *flag.FlagSet) {
 }
 
 func (c sealCommand) Command(ctx context.Context) int {
-	token := identify.TokenFromContext(ctx)
-	if token == nil {
+	i := identify.IdentityFromContext(ctx)
+	if i == nil {
 		fmt.Println("unauthorized")
 		return 1
 	}
@@ -65,37 +63,19 @@ func (c sealCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	passphrase, err := promptForPassphrase()
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	public, err := store.Get(token.Identity())
+	to, err := store.GetIdentity(*c.to)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	private, err := public.Authenticate(passphrase)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	to, err := store.Get(*c.to)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	sealedBytes, err := private.SealMessage(to, *c.message)
+	sealedBytes, err := i.SealMessage(to, *c.message)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
@@ -104,8 +84,4 @@ func (c sealCommand) Command(ctx context.Context) int {
 	sealed := base64.RawStdEncoding.EncodeToString(sealedBytes)
 	fmt.Println(sealed)
 	return 0
-}
-
-func (sealCommand) Subcommands() cli.CLI {
-	return nil
 }

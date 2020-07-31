@@ -20,37 +20,31 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
+	"fmt"
 
 	"github.com/akb/go-cli"
+	"github.com/akb/identify"
 )
 
-type identifyCommand struct {
-	cmd *newTokenCommand
+type getCommand struct{}
+
+func (getCommand) Help() {
+	fmt.Println("identify - authentication and authorization service")
+	fmt.Println("")
+	fmt.Println("Usage: identify get <resource> <key>")
+	fmt.Println("")
+	fmt.Println("Get the value of a resource.")
 }
 
-func (c identifyCommand) Help() {
-	c.cmd.Help()
+func (getCommand) Flags(f *flag.FlagSet) {}
+
+func (c getCommand) Command(ctx context.Context, args []string) int {
+	c.Help()
+	return 0
 }
 
-func (c identifyCommand) Flags(f *flag.FlagSet) {
-	c.cmd.Flags(f)
-}
-
-func (c identifyCommand) Command(ctx context.Context, args []string) int {
-	return c.cmd.Command(ctx, args)
-	return 1
-}
-
-func (identifyCommand) Subcommands() cli.CLI {
-	return map[string]cli.Command{
-		"new":    &newCommand{},
-		"get":    &getCommand{},
-		"delete": &deleteCommand{},
-		"listen": &listenCommand{},
+func (c getCommand) Subcommands() cli.CLI {
+	return cli.CLI{
+		"secret": identify.RequiresUserAuth(&getSecretCommand{}),
 	}
-}
-
-func main() {
-	os.Exit(cli.Main(&identifyCommand{&newTokenCommand{}}))
 }

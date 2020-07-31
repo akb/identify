@@ -23,6 +23,8 @@ import (
 	"fmt"
 
 	"github.com/akb/go-cli"
+
+	"github.com/akb/identify"
 )
 
 type newCommand struct{}
@@ -37,7 +39,7 @@ func (newCommand) Help() {
 
 func (newCommand) Flags(f *flag.FlagSet) {}
 
-func (c newCommand) Command(ctx context.Context) int {
+func (c newCommand) Command(ctx context.Context, args []string) int {
 	c.Help()
 	return 0
 }
@@ -45,6 +47,6 @@ func (c newCommand) Command(ctx context.Context) int {
 func (newCommand) Subcommands() cli.CLI {
 	return cli.CLI{
 		"identity": &newIdentityCommand{},
-		"token":    &newTokenCommand{},
+		"secret":   identify.RequiresUserAuth(&newSecretCommand{}),
 	}
 }

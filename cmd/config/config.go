@@ -48,19 +48,6 @@ func GetTokenSecret() ([]byte, error) {
 	return []byte(tokenSecret), nil
 }
 
-func GetCredentialsPath() (string, error) {
-	credsPath := os.Getenv("IDENTIFY_CREDENTIALS_PATH")
-	if len(credsPath) == 0 {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("A path to a credentials file must be provided" +
-				"by the environment variable IDENTIFY_CREDENTIALS_PATH.")
-		}
-		return path.Join(home, ".identify", "credentials.json"), nil
-	}
-	return credsPath, nil
-}
-
 func GetDBPath() (string, error) {
 	dbPath := os.Getenv("IDENTIFY_DB_PATH")
 	if len(dbPath) == 0 {

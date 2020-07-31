@@ -21,38 +21,40 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
-	"github.com/akb/identify/internal/http"
 	"github.com/akb/identify/internal/identity"
-	"github.com/akb/identify/internal/token"
 )
 
-type listenCommand struct{}
+type getSecretCommand struct{}
 
-func (listenCommand) Help() {
+func (getSecretCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
-	fmt.Println("Usage: identify new <resource>")
+	fmt.Println("Usage: identify get secret <key> <value>")
 	fmt.Println("")
-	fmt.Println("Create new resources.")
+	fmt.Println("Set the value of a secret")
 }
 
-func (listenCommand) Flags(f *flag.FlagSet) {}
+func (getSecretCommand) Flags(f *flag.FlagSet) {}
 
-func (c listenCommand) Command(ctx context.Context, args []string) int {
-	address := config.GetHTTPAddress()
-	realm := config.GetRealm()
-
-	dbPath, err := config.GetDBPath()
-	if err != nil {
-		fmt.Println(err.Error())
+func (c getSecretCommand) Command(ctx context.Context, args []string) int {
+	if len(os.Args) < 4 {
+		c.Help()
 		return 1
 	}
 
-	tokenDBPath, err := config.GetTokenDBPath()
+	key := args[0]
+
+	i := identify.IdentityFromContext(ctx)
+	if i == nil {
+		fmt.Println("unauthorized")
+		return 1
+	}
+
+	dbPath, err := config.GetDBPath()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
@@ -62,22 +64,17 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 	if err != nil {
 		fmt.Printf("An error occurred while opening identity database file:\n")
 		fmt.Println(err.Error())
-		os.Exit(1)
+		return 1
 	}
 	defer store.Close()
 
-	tokenStore, err := token.NewLocalStore(tokenDBPath)
+	value, err := store.GetSecret(i, key)
 	if err != nil {
-		fmt.Printf("An error occurred while opening token database file:\n")
 		fmt.Println(err.Error())
-		os.Exit(1)
+		return 1
 	}
-	defer tokenStore.Close()
 
-	server := http.NewServer(
-		http.ServerConfig{address, realm, store}) //, tokenStore})
+	fmt.Println(value)
 
-	fmt.Printf("Identity API listening for HTTP requests on %s...\n", address)
-	log.Fatal(server.ListenAndServe())
 	return 0
 }

@@ -31,7 +31,7 @@ import (
 
 type Store interface {
 	New(identity.PrivateIdentity) (string, string, error)
-	Parse(string) (Token, error)
+	Parse(string) (*jwt.Token, error)
 	Delete(string, string) error
 	Close()
 }
@@ -45,18 +45,17 @@ var (
 )
 
 type localStore struct {
-	db     *bolt.DB
-	secret []byte
-	done   chan struct{}
+	db   *bolt.DB
+	done chan struct{}
 }
 
-func NewLocalStore(dbPath string, secret []byte) (*localStore, error) {
+func NewLocalStore(dbPath string) (*localStore, error) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}
 
-	store := localStore{db, secret, make(chan struct{})}
+	store := localStore{db, make(chan struct{})}
 
 	go func() {
 		var timer *time.Timer = time.NewTimer(time.Minute)

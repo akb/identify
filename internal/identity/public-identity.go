@@ -25,16 +25,11 @@ import (
 	"fmt"
 	"io"
 
-	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
 	"golang.org/x/crypto/nacl/sign"
 
 	"github.com/google/uuid"
-)
-
-const (
-	bCryptCost = bcrypt.DefaultCost
 )
 
 type PublicIdentity interface {
@@ -44,6 +39,7 @@ type PublicIdentity interface {
 	String() string
 
 	Authenticate(passphrase string) (PrivateIdentity, error)
+	SealAnonymous(value string) ([]byte, error)
 }
 
 type publicIdentity struct {
@@ -127,6 +123,10 @@ func (i *publicIdentity) Authenticate(passphrase string) (PrivateIdentity, error
 	err := json.Unmarshal(unparsed, &identity)
 	identity.public = i
 	return &identity, err
+}
+
+func (i *publicIdentity) SealAnonymous(value string) ([]byte, error) {
+	return box.SealAnonymous(nil, []byte(value), i.sealPublicKey, rand.Reader)
 }
 
 func (i publicIdentity) MarshalJSON() ([]byte, error) {

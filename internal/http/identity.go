@@ -51,7 +51,7 @@ func (a api) new(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	public, _, err := a.IdentityStore.New(key)
+	public, _, err := a.IdentityStore.NewIdentity(key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

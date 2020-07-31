@@ -30,7 +30,7 @@ func (p Provider) RequireBasicAuth(h http.Handler) http.Handler {
 			return
 		}
 
-		public, err := p.IdentityStore.Get(id)
+		public, err := p.IdentityStore.GetIdentity(id)
 		if err != nil {
 			p.unauthorizedBasic(w)
 			return

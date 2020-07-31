@@ -22,13 +22,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
-
-	"github.com/akb/go-cli"
 
 	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
-	"github.com/akb/identify/internal/identity"
 	"github.com/akb/identify/internal/token"
 )
 
@@ -65,27 +61,9 @@ func (c *newTokenCommand) Flags(f *flag.FlagSet) {
 	c.id = f.String("id", "", "identity to authenticate")
 }
 
-func (c *newTokenCommand) Command(ctx context.Context) int {
+func (c *newTokenCommand) Command(ctx context.Context, args []string) int {
 	if len(*c.id) == 0 {
 		fmt.Println("an identity must be provided to authenticate")
-		return 1
-	}
-
-	credsPath, err := config.GetCredentialsPath()
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	dbPath, err := config.GetDBPath()
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	tokenSecret, err := config.GetTokenSecret()
-	if err != nil {
-		fmt.Println(err.Error())
 		return 1
 	}
 
@@ -95,39 +73,20 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	store, err := identity.NewLocalStore(dbPath)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-	defer store.Close()
-
-	tokenStore, err := token.NewLocalStore(tokenDBPath, tokenSecret)
+	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 	defer tokenStore.Close()
 
-	passphrase, err := promptForPassphrase()
-	if err != nil {
-		fmt.Println(err.Error())
+	identity := identify.IdentityFromContext(ctx)
+	if identity == nil {
+		fmt.Println("unauthorized")
 		return 1
 	}
 
-	public, err := store.Get(*c.id)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	private, err := public.Authenticate(passphrase)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	access, refresh, err := tokenStore.New(private)
+	access, refresh, err := tokenStore.New(identity)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
@@ -139,16 +98,6 @@ func (c *newTokenCommand) Command(ctx context.Context) int {
 		fmt.Println(err.Error())
 		return 1
 	}
-
-	if err = ioutil.WriteFile(credsPath, credsJSON, 0600); err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	fmt.Println("Authentication succeeded.")
+	fmt.Println(string(credsJSON))
 	return 0
-}
-
-func (newTokenCommand) Subcommands() cli.CLI {
-	return nil
 }

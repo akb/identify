@@ -39,6 +39,8 @@ type PrivateIdentity interface {
 
 	OpenMessage(PublicIdentity, []byte) (string, error)
 	SealMessage(PublicIdentity, string) ([]byte, error)
+
+	OpenAnonymous([]byte) (string, error)
 }
 
 type jsonPrivateIdentity struct {
@@ -101,6 +103,18 @@ func (i privateIdentity) SealMessage(
 	}
 	key := recipient.SealPublicKey()
 	return box.Seal(nonce[:], []byte(message), &nonce, &key, i.sealPrivateKey), nil
+}
+
+func (i privateIdentity) OpenAnonymous(sealed []byte) (string, error) {
+	unsealed, ok := box.OpenAnonymous(nil, sealed, i.public.sealPublicKey, i.sealPrivateKey)
+	if !ok {
+		return "", fmt.Errorf("key doesn't fit")
+	}
+	return string(unsealed), nil
+}
+
+func (i privateIdentity) SealAnonymous(value string) ([]byte, error) {
+	return i.public.SealAnonymous(value)
 }
 
 func (i privateIdentity) MarshalJSON() ([]byte, error) {
