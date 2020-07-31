@@ -36,8 +36,6 @@ func (getCommand) Help() {
 	fmt.Println("Get the value of a resource.")
 }
 
-func (getCommand) Flags(f *flag.FlagSet) {}
-
 func (c getCommand) Command(ctx context.Context, args []string) int {
 	c.Help()
 	return 0

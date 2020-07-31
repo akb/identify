@@ -38,8 +38,6 @@ func (newSecretCommand) Help() {
 	fmt.Println("Set the value of a secret")
 }
 
-func (newSecretCommand) Flags(f *flag.FlagSet) {}
-
 func (c newSecretCommand) Command(ctx context.Context, args []string) int {
 	if len(os.Args) < 5 {
 		c.Help()

@@ -35,8 +35,6 @@ func (deleteCommand) Help() {
 	fmt.Println("Delete resources.")
 }
 
-func (deleteCommand) Flags(f *flag.FlagSet) {}
-
 func (c deleteCommand) Command(ctx context.Context, args []string) int {
 	c.Help()
 	return 0

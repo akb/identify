@@ -40,8 +40,6 @@ func (listenCommand) Help() {
 	fmt.Println("Create new resources.")
 }
 
-func (listenCommand) Flags(f *flag.FlagSet) {}
-
 func (c listenCommand) Command(ctx context.Context, args []string) int {
 	address := config.GetHTTPAddress()
 	realm := config.GetRealm()

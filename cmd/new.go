@@ -30,14 +30,17 @@ import (
 type newCommand struct{}
 
 func (newCommand) Help() {
-	fmt.Println("identify - authentication and authorization service")
-	fmt.Println("")
-	fmt.Println("Usage: identify new <resource>")
-	fmt.Println("")
-	fmt.Println("Create new resources.")
-}
+	fmt.Println(`identify - authentication and authorization service
 
-func (newCommand) Flags(f *flag.FlagSet) {}
+Usage: identify new <resource>
+
+Create new resources.
+
+Resources:
+identity
+secret
+`)
+}
 
 func (c newCommand) Command(ctx context.Context, args []string) int {
 	c.Help()

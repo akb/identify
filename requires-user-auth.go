@@ -49,7 +49,9 @@ func (c requiresUserAuthCommand) Help() {
 
 func (c *requiresUserAuthCommand) Flags(f *flag.FlagSet) {
 	c.id = f.String("id", "", "your identity")
-	c.wrapped.Flags(f)
+	if b, ok := (interface{})(c.wrapped).(cli.HasFlags); ok {
+		b.Flags(f)
+	}
 }
 
 func (c requiresUserAuthCommand) Command(ctx context.Context, args []string) int {

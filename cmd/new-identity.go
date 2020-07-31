@@ -30,9 +30,6 @@ type newIdentityCommand struct{}
 
 func (newIdentityCommand) Help() {}
 
-func (c *newIdentityCommand) Flags(f *flag.FlagSet) {
-}
-
 func (c newIdentityCommand) Command(ctx context.Context, args []string) int {
 	dbPath, err := config.GetDBPath()
 	if err != nil {
