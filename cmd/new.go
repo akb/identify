@@ -19,7 +19,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 
 	"github.com/akb/go-cli"
@@ -44,7 +43,7 @@ secret
 
 func (c newCommand) Command(ctx context.Context, args []string) int {
 	c.Help()
-	return 0
+	return 1
 }
 
 func (newCommand) Subcommands() cli.CLI {
