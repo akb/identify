@@ -4,8 +4,9 @@ go 1.14
 
 require (
 	github.com/Netflix/go-expect v0.0.0-20200312175327-da48e75238e2
-	github.com/akb/go-cli v0.0.0-20200731024608-36380657263a // indirect
+	github.com/akb/go-cli v0.0.0-20200802154301-2bf3b1544a5a // indirect
 	github.com/boltdb/bolt v1.3.1
+	github.com/brianvoe/gofakeit/v5 v5.9.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/google/goexpect v0.0.0-20200703111054-623d5ca06f56
 	github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f // indirect

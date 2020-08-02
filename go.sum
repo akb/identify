@@ -8,8 +8,14 @@ github.com/akb/go-cli v0.0.0-20200730210957-bd232709fa8e h1:EWZqGTBzqxqVBV1KBgMJ
 github.com/akb/go-cli v0.0.0-20200730210957-bd232709fa8e/go.mod h1:2Q0aNrHNbdpPDlouQXdBIScbZcZlvfzeDeEnMqPP4Rw=
 github.com/akb/go-cli v0.0.0-20200731024608-36380657263a h1:VeTKEZJDRhnRD/Xpl3OFtEC7HNg/d6YN92xeWWFAQ+g=
 github.com/akb/go-cli v0.0.0-20200731024608-36380657263a/go.mod h1:2Q0aNrHNbdpPDlouQXdBIScbZcZlvfzeDeEnMqPP4Rw=
+github.com/akb/go-cli v0.0.0-20200802154301-2bf3b1544a5a h1:pjch+NC4niSZjjnwT5iOgIaRBx7vQMVlEkysM5M2pwY=
+github.com/akb/go-cli v0.0.0-20200802154301-2bf3b1544a5a/go.mod h1:2Q0aNrHNbdpPDlouQXdBIScbZcZlvfzeDeEnMqPP4Rw=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
+github.com/brianvoe/gofakeit v1.2.0 h1:GGbzCqQx9ync4ObAUhRa3F/M73eL9VZL3X09WoTwphM=
+github.com/brianvoe/gofakeit v3.18.0+incompatible h1:wDOmHc9DLG4nRjUVVaxA+CEglKOW72Y5+4WNxUIkjM8=
+github.com/brianvoe/gofakeit/v5 v5.9.1 h1:uYNxmk4ocCTIq+y6O896JR8a6oZ42fzn2wc753punjc=
+github.com/brianvoe/gofakeit/v5 v5.9.1/go.mod h1:/ZENnKqX+XrN8SORLe/fu5lZDIo1tuPncWuRD+eyhSI=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=

@@ -11,7 +11,10 @@ import (
 	"testing"
 
 	"github.com/Netflix/go-expect"
+	"github.com/brianvoe/gofakeit/v5"
 	"github.com/google/uuid"
+
+	"github.com/akb/go-cli"
 )
 
 func TestNewIdentityCommand(t *testing.T) {
@@ -36,30 +39,35 @@ func TestNewIdentityCommand(t *testing.T) {
 	}
 	defer c.Close()
 
-	cmd := exec.Command(commandName, "new", "identity")
-	cmd.Env = append(os.Environ(), fmt.Sprintf("IDENTIFY_DB_PATH=%s", dbPath))
-	cmd.Stdin = c.Tty()
-	cmd.Stdout = c.Tty()
-	cmd.Stderr = c.Tty()
-
 	var output string
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		c.Expectf("Enter passphrase:")
-		c.SendLine("foobar") // TODO: generate pw
+		_, err = c.Expectf("Enter passphrase:")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.SendLine(gofakeit.Password(true, true, true, true, true, 33))
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		output, err = c.ExpectEOF()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	err = cmd.Run()
-	if err != nil {
-		t.Fatal(err)
-	}
+	cmd := exec.Command(commandName, "new", "identity")
+	cmd.Env = append(os.Environ(), fmt.Sprintf("IDENTIFY_DB_PATH=%s", dbPath))
+	cmd.Stdin = c.Tty()
+	cmd.Stdout = c.Tty()
+	cmd.Stderr = c.Tty()
+
+	cli.ExpectSuccess(t, cmd.Run())
 
 	c.Tty().Close()
 
