@@ -29,27 +29,33 @@ import (
 	"github.com/akb/identify/internal/identity"
 )
 
+type Store interface {
+	New(identity.PrivateIdentity) (string, string, error)
+	Parse(string) (*jwt.Token, error)
+	Delete(string, string) error
+	Close()
+}
+
 var (
 	tokenBucket      = []byte("token")
 	accessTTLBucket  = []byte("access-ttl")
 	refreshTTLBucket = []byte("refresh-ttl")
-	accessMaxAge     = time.Second * 15
+	accessMaxAge     = time.Minute * 5
 	refreshMaxAge    = time.Hour * 24 * 7
 )
 
 type localStore struct {
-	db     *bolt.DB
-	secret string
-	done   chan struct{}
+	db   *bolt.DB
+	done chan struct{}
 }
 
-func NewLocalStore(dbPath, secret string) (*localStore, error) {
+func NewLocalStore(dbPath string) (*localStore, error) {
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}
 
-	store := localStore{db, secret, make(chan struct{})}
+	store := localStore{db, make(chan struct{})}
 
 	go func() {
 		var timer *time.Timer = time.NewTimer(time.Minute)
@@ -74,35 +80,31 @@ func (s *localStore) Close() {
 	s.db.Close()
 }
 
-func (s *localStore) Parse(unparsed string) (Token, error) {
-	return Parse(unparsed, s.secret)
-}
-
-func (s *localStore) New(identity identity.Identity) (Token, Token, error) {
+func (s *localStore) New(identity identity.PrivateIdentity) (string, string, error) {
 	id := identity.String()
 
 	accessUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
 
 	refreshUUID, err := uuid.NewRandom()
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
 
 	accessID := accessUUID.String()
 	refreshID := refreshUUID.String()
 
 	atExpiry := time.Now().Add(accessMaxAge).Unix()
-	at := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	at := jwt.NewWithClaims(*SigningMethodNaCl, jwt.MapClaims{
 		"exp":      atExpiry,
 		"jti":      accessID,
 		"identity": id,
 	})
 
 	rtExpiry := time.Now().Add(refreshMaxAge).Unix()
-	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	rt := jwt.NewWithClaims(*SigningMethodNaCl, jwt.MapClaims{
 		"exp":      rtExpiry,
 		"jti":      refreshID,
 		"identity": id,
@@ -128,10 +130,20 @@ func (s *localStore) New(identity identity.Identity) (Token, Token, error) {
 		}
 		return nil
 	}); err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
 
-	return &jwToken{at, s.secret}, &jwToken{rt, s.secret}, nil
+	access, err := at.SignedString(identity.SignPrivateKey())
+	if err != nil {
+		return "", "", err
+	}
+
+	refresh, err := rt.SignedString(identity.SignPrivateKey())
+	if err != nil {
+		return "", "", err
+	}
+
+	return access, refresh, nil
 }
 
 func (s *localStore) Delete(identity, id string) error {

@@ -19,29 +19,32 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
-	"log"
-	"os"
 
+	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
-	"github.com/akb/identify/internal/http"
 	"github.com/akb/identify/internal/identity"
-	"github.com/akb/identify/internal/token"
 )
 
-type listenCommand struct{}
-
-func (listenCommand) Help() {
-	fmt.Println("identify - authentication and authorization service")
-	fmt.Println("")
-	fmt.Println("Usage: identify new <resource>")
-	fmt.Println("")
-	fmt.Println("Create new resources.")
+type openCommand struct {
+	from    *string
+	message *string
 }
 
-func (c listenCommand) Command(ctx context.Context, args []string) int {
-	address := config.GetHTTPAddress()
-	realm := config.GetRealm()
+func (openCommand) Help() {}
+
+func (c *openCommand) Flags(f *flag.FlagSet) {
+	c.from = f.String("from", "", "id of message sender")
+	c.message = f.String("message", "", "sealed message to open")
+}
+
+func (c openCommand) Command(ctx context.Context) int {
+	i := identify.IdentityFromContext(ctx)
+	if i == nil {
+		fmt.Println("unauthorized")
+		return 1
+	}
 
 	dbPath, err := config.GetDBPath()
 	if err != nil {
@@ -49,32 +52,25 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 		return 1
 	}
 
-	tokenDBPath, err := config.GetTokenDBPath()
+	store, err := identity.NewLocalStore(dbPath)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1
+	}
+	defer store.Close()
+
+	from, err := store.GetIdentity(*c.from)
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
 	}
 
-	store, err := identity.NewLocalStore(dbPath)
+	message, err := i.OpenMessage(from, []byte(*c.message))
 	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
 		fmt.Println(err.Error())
-		os.Exit(1)
+		return 1
 	}
-	defer store.Close()
 
-	tokenStore, err := token.NewLocalStore(tokenDBPath)
-	if err != nil {
-		fmt.Printf("An error occurred while opening token database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer tokenStore.Close()
-
-	server := http.NewServer(
-		http.ServerConfig{address, realm, store}) //, tokenStore})
-
-	fmt.Printf("Identity API listening for HTTP requests on %s...\n", address)
-	log.Fatal(server.ListenAndServe())
+	fmt.Println(message)
 	return 0
 }

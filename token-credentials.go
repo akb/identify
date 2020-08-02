@@ -15,28 +15,47 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package token
+package identify
 
 import (
-	"fmt"
+	"encoding/json"
+	"io/ioutil"
 
 	"github.com/dgrijalva/jwt-go"
+
+	"github.com/akb/identify/internal/token"
 )
 
-type Credentials struct {
+type UnparsedTokenCredentials struct {
 	Access  string `json:"access"`
 	Refresh string `json:"refresh"`
 }
 
-func Parse(unparsed string) (*jwt.Token, error) {
-	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*signingMethodNaCl); !ok {
-			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
-		}
-		return []byte{}, nil
-	})
+func (c UnparsedTokenCredentials) Parse() (*TokenCredentials, error) {
+	access, err := token.Parse(c.Access)
 	if err != nil {
 		return nil, err
 	}
-	return token, nil
+
+	// TODO: Attempt to refresh if access is expired
+	return &TokenCredentials{access, nil}, nil
+}
+
+type TokenCredentials struct {
+	Access  *jwt.Token
+	Refresh *jwt.Token
+}
+
+func LoadTokenCredentials(credsPath string) (*TokenCredentials, error) {
+	credsJSON, err := ioutil.ReadFile(credsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var creds UnparsedTokenCredentials
+	if err = json.Unmarshal(credsJSON, &creds); err != nil {
+		return nil, err
+	}
+
+	return creds.Parse()
 }

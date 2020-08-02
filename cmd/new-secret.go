@@ -20,36 +20,39 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
-	"github.com/akb/identify/internal/http"
 	"github.com/akb/identify/internal/identity"
-	"github.com/akb/identify/internal/token"
 )
 
-type listenCommand struct{}
+type newSecretCommand struct{}
 
-func (listenCommand) Help() {
+func (newSecretCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
-	fmt.Println("Usage: identify new <resource>")
+	fmt.Println("Usage: identify new secret <key> <value>")
 	fmt.Println("")
-	fmt.Println("Create new resources.")
+	fmt.Println("Set the value of a secret")
 }
 
-func (c listenCommand) Command(ctx context.Context, args []string) int {
-	address := config.GetHTTPAddress()
-	realm := config.GetRealm()
-
-	dbPath, err := config.GetDBPath()
-	if err != nil {
-		fmt.Println(err.Error())
+func (c newSecretCommand) Command(ctx context.Context, args []string) int {
+	if len(os.Args) < 5 {
+		c.Help()
 		return 1
 	}
 
-	tokenDBPath, err := config.GetTokenDBPath()
+	key := args[0]
+	value := args[1]
+
+	i := identify.IdentityFromContext(ctx)
+	if i == nil {
+		fmt.Println("unauthorized")
+		return 1
+	}
+
+	dbPath, err := config.GetDBPath()
 	if err != nil {
 		fmt.Println(err.Error())
 		return 1
@@ -59,22 +62,14 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 	if err != nil {
 		fmt.Printf("An error occurred while opening identity database file:\n")
 		fmt.Println(err.Error())
-		os.Exit(1)
+		return 1
 	}
 	defer store.Close()
 
-	tokenStore, err := token.NewLocalStore(tokenDBPath)
-	if err != nil {
-		fmt.Printf("An error occurred while opening token database file:\n")
+	if err = store.PutSecret(i, key, value); err != nil {
 		fmt.Println(err.Error())
-		os.Exit(1)
+		return 1
 	}
-	defer tokenStore.Close()
 
-	server := http.NewServer(
-		http.ServerConfig{address, realm, store}) //, tokenStore})
-
-	fmt.Printf("Identity API listening for HTTP requests on %s...\n", address)
-	log.Fatal(server.ListenAndServe())
 	return 0
 }

@@ -15,46 +15,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package auth
 
 import (
 	"context"
-	"fmt"
-	"os"
-
-	"github.com/akb/go-cli"
+	"net/http"
 )
 
-type identifyCommand struct{}
+func (p Provider) RequireBasicAuth(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, passphrase, ok := r.BasicAuth()
+		if !ok {
+			p.unauthorizedBasic(w)
+			return
+		}
 
-func (c identifyCommand) Help() {
-	fmt.Println(`
-identify - authentication and authorization service
+		public, err := p.IdentityStore.GetIdentity(id)
+		if err != nil {
+			p.unauthorizedBasic(w)
+			return
+		}
 
-Usage: identify <subcommand>
+		private, err := public.Authenticate(passphrase)
+		if err != nil {
+			p.unauthorizedBasic(w)
+			return
+		}
 
-Subcommands:
-new     create new resources
-get     get resource content
-delete  delete resources
-listen  listen for http requests
-`)
+		r = r.WithContext(context.WithValue(r.Context(), identityContextKey, private))
+		h.ServeHTTP(w, r)
+	})
 }
 
-func (c identifyCommand) Command(ctx context.Context, args []string) int {
-	c.Help()
-	return 1
-}
-
-func (identifyCommand) Subcommands() cli.CLI {
-	return map[string]cli.Command{
-		"new":    &newCommand{},
-		"get":    &getCommand{},
-		"delete": &deleteCommand{},
-		"listen": &listenCommand{},
-	}
-}
-
-func main() {
-	os.Exit(cli.Main(&identifyCommand{}))
+func (p Provider) unauthorizedBasic(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="`+p.Realm+`"`)
+	http.Error(w, "unauthorized", http.StatusUnauthorized)
 }

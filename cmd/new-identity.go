@@ -19,10 +19,7 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
-
-	"github.com/akb/go-cli"
 
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
@@ -32,10 +29,7 @@ type newIdentityCommand struct{}
 
 func (newIdentityCommand) Help() {}
 
-func (c *newIdentityCommand) Flags(f *flag.FlagSet) {
-}
-
-func (newIdentityCommand) Command(ctx context.Context) int {
+func (c newIdentityCommand) Command(ctx context.Context, args []string) int {
 	dbPath, err := config.GetDBPath()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -56,16 +50,12 @@ func (newIdentityCommand) Command(ctx context.Context) int {
 		return 1
 	}
 
-	id, err := store.New(string(passphrase))
+	public, _, err := store.NewIdentity(string(passphrase))
 	if err != nil {
 		fmt.Printf("Error while creating new identity.\n%s\n", err.Error())
 		return 1
 	}
 
-	fmt.Printf("New identity created: %s\n", id)
+	fmt.Println(public.String())
 	return 0
-}
-
-func (newIdentityCommand) Subcommands() cli.CLI {
-	return nil
 }

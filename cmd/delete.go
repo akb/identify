@@ -19,7 +19,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 
 	"github.com/akb/go-cli"
@@ -35,9 +34,7 @@ func (deleteCommand) Help() {
 	fmt.Println("Delete resources.")
 }
 
-func (deleteCommand) Flags(f *flag.FlagSet) {}
-
-func (c deleteCommand) Command(ctx context.Context) int {
+func (c deleteCommand) Command(ctx context.Context, args []string) int {
 	c.Help()
 	return 0
 }

@@ -18,48 +18,33 @@
 package http
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
 	"mime"
 	"net/http"
 	"strings"
 
+	"github.com/akb/identify/internal/http/auth"
 	"github.com/akb/identify/internal/identity"
-	"github.com/akb/identify/internal/token"
+	//"github.com/akb/identify/internal/token"
 )
-
-type NewIdentityRequest struct {
-	Key string `json:"key"`
-}
-
-type NewIdentityResponse struct {
-	ID string `json:"id"`
-}
-
-type NewTokenResponse struct {
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
-}
 
 type ServerConfig struct {
 	Addr  string
 	Realm string
 
 	IdentityStore identity.Store
-	TokenStore    token.Store
+	//TokenStore    token.Store
 }
 
 type api struct {
 	ServerConfig
 
-	auth AuthProvider
+	auth auth.Provider
 }
 
 func NewServer(c ServerConfig) *http.Server {
 	return &http.Server{
 		Addr:    c.Addr,
-		Handler: api{c, AuthProvider{c.Realm, c.IdentityStore, c.TokenStore}},
+		Handler: api{c, auth.Provider{c.Realm, c.IdentityStore}}, //, c.TokenStore}},
 	}
 }
 
@@ -73,192 +58,21 @@ func (a api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		a.new(w, r)
 
-	} else if r.URL.Path == "/token" {
-		if r.Method == http.MethodPost {
-			a.auth.RequireBasicAuth(http.HandlerFunc(a.newToken)).ServeHTTP(w, r)
-		} else if r.Method == http.MethodDelete {
-			a.auth.RequireTokenAuth(http.HandlerFunc(a.deleteToken)).ServeHTTP(w, r)
-		} else {
-			w.Header().Set("Allow", "POST, DELETE")
-			http.Error(w,
-				"Only DELETE or POST requests are allowed for this endpoint.",
-				http.StatusMethodNotAllowed)
-			return
-		}
+		//} else if r.URL.Path == "/token" {
+		//	if r.Method == http.MethodPost {
+		//		a.auth.RequireBasicAuth(http.HandlerFunc(a.newToken)).ServeHTTP(w, r)
+		//		//} else if r.Method == http.MethodDelete {
+		//		//	a.auth.RequireTokenAuth(http.HandlerFunc(a.deleteToken)).ServeHTTP(w, r)
+		//	} else {
+		//		w.Header().Set("Allow", "POST") //, DELETE")
+		//		http.Error(w,
+		//			"Only POST requests are allowed for this endpoint.",
+		//			http.StatusMethodNotAllowed)
+		//		return
+		//	}
 	} else {
 		http.NotFound(w, r)
 	}
-}
-
-func (a api) new(w http.ResponseWriter, r *http.Request) {
-	var key string
-
-	if hasContentType(r, "application/x-www-form-urlencoded") ||
-		hasContentType(r, "multipart/form-data") {
-		key = r.PostFormValue("key")
-
-	} else if hasContentType(r, "application/json") {
-		var parsed NewIdentityRequest
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&parsed); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		key = parsed.Key
-
-	} else {
-		http.Error(w, "Unable to parse request body.", http.StatusUnsupportedMediaType)
-		return
-	}
-
-	id, err := a.IdentityStore.New(key)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	response, err := json.Marshal(NewIdentityResponse{id.String()})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
-}
-
-func (a api) newToken(w http.ResponseWriter, r *http.Request) {
-	identity, err := IdentityFromContext(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	access, refresh, err := a.TokenStore.New(identity)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	response, err := json.Marshal(NewTokenResponse{
-		Access:  access.String(),
-		Refresh: refresh.String(),
-	})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
-}
-
-func (a api) deleteToken(w http.ResponseWriter, r *http.Request) {
-	token, err := TokenFromContext(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = a.TokenStore.Delete(token.Identity(), token.ID())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-type AuthProvider struct {
-	Realm string
-
-	IdentityStore identity.Store
-	TokenStore    token.Store
-}
-
-type contextKey string
-
-const (
-	identityContextKey = contextKey("identity")
-	tokenContextKey    = contextKey("token")
-)
-
-func IdentityFromContext(ctx context.Context) (identity.Identity, error) {
-	v := ctx.Value(identityContextKey)
-	if v == nil {
-		return nil, fmt.Errorf("Identity not found in request context")
-	}
-	return v.(identity.Identity), nil
-}
-
-func TokenFromContext(ctx context.Context) (token.Token, error) {
-	v := ctx.Value(tokenContextKey)
-	if v == nil {
-		return nil, fmt.Errorf("Token not found in request context")
-	}
-	return v.(token.Token), nil
-}
-
-func (p AuthProvider) RequireBasicAuth(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, key, ok := r.BasicAuth()
-		if !ok {
-			p.unauthorizedBasic(w)
-			return
-		}
-
-		identity, err := p.IdentityStore.Get(id)
-		if err != nil {
-			p.unauthorizedBasic(w)
-			return
-		}
-
-		if !identity.Authenticate(key) {
-			p.unauthorizedBasic(w)
-			return
-		}
-
-		r = r.WithContext(context.WithValue(r.Context(), identityContextKey, identity))
-		h.ServeHTTP(w, r)
-	})
-}
-
-func (p AuthProvider) RequireTokenAuth(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		splitHeader := strings.Split(authHeader, " ")
-		if len(splitHeader) < 2 {
-			p.unauthorizedToken(w)
-			return
-		}
-
-		token, err := p.TokenStore.Parse(splitHeader[1])
-		if err != nil || !token.Valid() {
-			p.unauthorizedToken(w)
-			return
-		}
-
-		id := token.Identity()
-		if id == "" {
-			p.unauthorizedToken(w)
-			return
-		}
-
-		identity, err := p.IdentityStore.Get(id)
-		if err != nil {
-			p.unauthorizedToken(w)
-			return
-		}
-
-		r = r.WithContext(context.WithValue(r.Context(), identityContextKey, identity))
-		h.ServeHTTP(w, r)
-	})
-}
-
-func (p AuthProvider) unauthorizedBasic(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", `Basic realm="`+p.Realm+`"`)
-	http.Error(w, "unauthorized", http.StatusUnauthorized)
-}
-
-func (p AuthProvider) unauthorizedToken(w http.ResponseWriter) {
-	http.Error(w, "unauthorized", http.StatusUnauthorized)
 }
 
 func hasContentType(r *http.Request, mimetype string) bool {

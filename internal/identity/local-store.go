@@ -18,9 +18,8 @@
 package identity
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -29,26 +28,18 @@ import (
 	"github.com/google/uuid"
 )
 
+type Store interface {
+	NewIdentity(string) (PublicIdentity, PrivateIdentity, error)
+	GetIdentity(string) (PublicIdentity, error)
+	PutSecret(PublicIdentity, string, string) error
+	GetSecret(PrivateIdentity, string) (string, error)
+	Close()
+}
+
 var (
-	identityBucket = []byte("identity")
+	identityBucketKey = []byte("identity")
+	secretBucketKey   = []byte("secret")
 )
-
-type localIdentity struct {
-	ID   string `json:"id"`
-	Salt string `json:"salt"`
-	Key  []byte `json:"key"`
-}
-
-func (l localIdentity) Authenticate(key string) bool {
-	hash := sha256.New()
-	hash.Write([]byte(l.ID))
-	hash.Write([]byte(l.Salt))
-	return subtle.ConstantTimeCompare(l.Key, hash.Sum([]byte(key))) == 1
-}
-
-func (l localIdentity) String() string {
-	return l.ID
-}
 
 type localStore struct {
 	db *bolt.DB
@@ -71,66 +62,47 @@ func (s *localStore) Close() {
 	s.db.Close()
 }
 
-func (s *localStore) New(key string) (Identity, error) {
-	var err error
-
-	id, err := uuid.NewRandom()
+func (s *localStore) NewIdentity(passphrase string) (PublicIdentity, PrivateIdentity, error) {
+	public, private, err := NewIdentity(passphrase)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	salt, err := uuid.NewRandom()
+	marshaled, err := json.Marshal(public)
 	if err != nil {
-		return nil, err
-	}
-
-	hash := sha256.New()
-	hash.Write([]byte(id.String()))
-	hash.Write([]byte(salt.String()))
-
-	identity := localIdentity{
-		ID:   id.String(),
-		Salt: salt.String(),
-		Key:  hash.Sum([]byte(key)),
+		return nil, nil, err
 	}
 
 	err = s.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(identityBucket)
+		b, err := tx.CreateBucketIfNotExists(identityBucketKey)
 		if err != nil {
 			return err
 		}
-
-		encoded, err := json.Marshal(identity)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(identity.ID), encoded)
+		return b.Put([]byte(public.String()), marshaled)
 	})
-
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &identity, nil
+	return public, private, nil
 }
 
-func (s *localStore) Get(id string) (Identity, error) {
+func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
 	_, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
 	}
 
-	var identity localIdentity
+	var identity publicIdentity
 	if err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(identityBucket)
+		b := tx.Bucket(identityBucketKey)
 		if b == nil {
-			return nil
+			return fmt.Errorf("identity bucket doesn't exist")
 		}
 
 		unparsed := b.Get([]byte(id))
 		if unparsed == nil {
-			return nil
+			return fmt.Errorf("could not find identity for id %s", id)
 		}
 
 		return json.Unmarshal(unparsed, &identity)
@@ -138,18 +110,44 @@ func (s *localStore) Get(id string) (Identity, error) {
 		return nil, err
 	}
 
-	if identity.Key == nil {
-		return nil, nil
-	}
-
 	return &identity, nil
 }
 
-func (s *localStore) Authenticate(id, passphrase string) bool {
-	identity, err := s.Get(id)
-	if err != nil {
-		return false
-	}
+func (s *localStore) PutSecret(i PublicIdentity, key, value string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(secretBucketKey)
+		if err != nil {
+			return err
+		}
+		sealed, err := i.SealAnonymous(value)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(key), sealed)
+	})
+}
 
-	return !identity.Authenticate(string(passphrase))
+func (s *localStore) GetSecret(i PrivateIdentity, key string) (string, error) {
+	var value string
+	if err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(secretBucketKey)
+		if b == nil {
+			return fmt.Errorf("secret bucket doesn't exist")
+		}
+
+		sealed := b.Get([]byte(key))
+		if sealed == nil {
+			return fmt.Errorf("secret for key doesn't exist")
+		}
+
+		var err error
+		value, err = i.OpenAnonymous(sealed)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	return value, nil
 }

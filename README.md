@@ -1,13 +1,13 @@
 Identify
 ========
 
+At the moment this project just serves as a platform for me to learn about auth
+systems. Feel free to submit issues but I'm not quite ready for pull requests.
+Use at your own risk, this code is far from being production ready.
+
 Identity authentication and authorization service. Identify provides a secure
 interface for authenticating one's identity and provides token-based
 authorization for other services.
-
-This project is in its infancy, feel free to submit issues but I'm not quite
-ready for pull requests. Use at your own risk, this code is far from being
-production ready.
 
 ## Building
 
@@ -18,7 +18,7 @@ production ready.
 `identify new identity`
 - creates a new identity
 
-`identify | identify new token`
+`identify new token`
 - authenticates an identity and generates access and refresh tokens
 
 `identify delete token`
@@ -26,6 +26,12 @@ production ready.
 
 `identify listen`
 - listens for HTTP traffic
+
+`identify seal`
+- seals a message
+
+`identify open`
+- opens a message
 
 ## HTTP API
 

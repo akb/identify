@@ -39,26 +39,13 @@ func GetRealm() string {
 	return realm
 }
 
-func GetTokenSecret() (string, error) {
+func GetTokenSecret() ([]byte, error) {
 	tokenSecret := os.Getenv("IDENTIFY_TOKEN_SECRET")
 	if len(tokenSecret) == 0 {
-		return "", fmt.Errorf("An secret key to sign tokens with must be " +
+		return []byte{}, fmt.Errorf("An secret key to sign tokens with must be " +
 			"provided by the environment variable IDENTIFY_TOKEN_SECRET.")
 	}
-	return tokenSecret, nil
-}
-
-func GetCredentialsPath() (string, error) {
-	credsPath := os.Getenv("IDENTIFY_CREDENTIALS_PATH")
-	if len(credsPath) == 0 {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("A path to a credentials file must be provided" +
-				"by the environment variable IDENTIFY_CREDENTIALS_PATH.")
-		}
-		return path.Join(home, ".identify", "credentials.json"), nil
-	}
-	return credsPath, nil
+	return []byte(tokenSecret), nil
 }
 
 func GetDBPath() (string, error) {
