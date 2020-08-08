@@ -21,34 +21,30 @@ func TestNewIdentityCommand(t *testing.T) {
 
 	dbPath := filepath.Join(dir, "identity.db")
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
+	cmd := newIdentity{AuthenticatedCommand{passphrase}}
 
-	testInteractiveCommand(t, dbPath, newIdentityTest{passphrase})
+	testInteractiveCommand(t, dbPath, cmd)
 }
 
-type newIdentityTest struct {
-	passphrase string
+type newIdentity struct {
+	auth AuthenticatedCommand
 }
 
-func (i newIdentityTest) Command() string { return "new identity" }
+func (i newIdentity) Command() []string { return []string{"new", "identity"} }
 
-func (i newIdentityTest) TestCommand(t *testing.T, c *expect.Console) {
-	var err error
-	_, err = c.Expectf("Enter passphrase:")
+func (i newIdentity) Automate(c *expect.Console) (string, error) {
+	output, err := i.auth.Authenticate(c)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(output), nil
+}
+
+func (i newIdentity) Test(t *testing.T, c *expect.Console) {
+	id, err := i.Automate(c)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = c.SendLine(i.passphrase)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	output, err := c.ExpectEOF()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	id := strings.TrimSpace(output)
 
 	_, err = uuid.Parse(id)
 	if err != nil {

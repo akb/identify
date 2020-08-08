@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/Netflix/go-expect"
+	"github.com/brianvoe/gofakeit/v5"
 
 	"github.com/akb/go-cli"
 )
@@ -19,11 +20,37 @@ func init() {
 	if len(commandName) == 0 {
 		commandName = "identify"
 	}
+	gofakeit.Seed(time.Now().UnixNano())
+}
+
+type AuthenticatedCommand struct {
+	passphrase string
+}
+
+func (i AuthenticatedCommand) Authenticate(c *expect.Console) (string, error) {
+	var err error
+	_, err = c.Expectf("Enter passphrase:")
+	if err != nil {
+		return "", err
+	}
+
+	_, err = c.SendLine(i.passphrase)
+	if err != nil {
+		return "", err
+	}
+
+	output, err := c.ExpectEOF()
+	if err != nil {
+		return "", err
+	}
+
+	return output, nil
 }
 
 type InteractiveCommand interface {
-	Command() string
-	TestCommand(t *testing.T, c *expect.Console)
+	Command() []string
+	Automate(c *expect.Console) (string, error)
+	Test(t *testing.T, c *expect.Console)
 }
 
 func testInteractiveCommand(t *testing.T, dbPath string, i InteractiveCommand) {
@@ -35,11 +62,11 @@ func testInteractiveCommand(t *testing.T, dbPath string, i InteractiveCommand) {
 
 	closer := make(chan struct{})
 	go func() {
-		i.TestCommand(t, c)
+		i.Test(t, c)
 		closer <- struct{}{}
 	}()
 
-	cmd := exec.Command(commandName, strings.Fields(i.Command())...)
+	cmd := exec.Command(commandName, i.Command()...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("IDENTIFY_DB_PATH=%s", dbPath))
 	cmd.Stdin = c.Tty()
 	cmd.Stdout = c.Tty()
@@ -50,4 +77,44 @@ func testInteractiveCommand(t *testing.T, dbPath string, i InteractiveCommand) {
 	c.Tty().Close()
 
 	<-closer
+}
+
+func automateInteractiveCommand(dbPath string, i InteractiveCommand) (string, error) {
+	c, err := expect.NewConsole()
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+
+	result := make(chan interface{})
+	go func() {
+		out, err := i.Automate(c)
+		if err != nil {
+			result <- err
+		} else {
+			result <- out
+		}
+	}()
+
+	cmd := exec.Command(commandName, i.Command()...)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("IDENTIFY_DB_PATH=%s", dbPath))
+	cmd.Stdin = c.Tty()
+	cmd.Stdout = c.Tty()
+	cmd.Stderr = c.Tty()
+
+	if err = cmd.Run(); err != nil {
+		return "", err
+	}
+
+	c.Tty().Close()
+
+	out := <-result
+	switch o := out.(type) {
+	case string:
+		return o, nil
+	case error:
+		return "", o
+	default:
+		panic("out has an unknown type")
+	}
 }
