@@ -22,26 +22,23 @@ func TestSecrets(t *testing.T) {
 	dbPath := filepath.Join(dir, "identity.db")
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
 
-	t.Log("generating new identity...")
+	t.Logf("generating new identity...")
 	newIdentityCmd := newIdentity{AuthenticatedCommand{passphrase}}
-	t.Logf("%% %s\n", strings.Join(newIdentityCmd.Command(), " "))
 	id, err := automateInteractiveCommand(dbPath, newIdentityCmd)
 	if err != nil {
+		t.Log("failed.")
 		t.Fatal(err)
+	} else {
+		t.Logf("new identity created: %s\n", id)
 	}
-	t.Logf("new identity created: %s\n", id)
 
 	key := fmt.Sprintf("%s-%s", gofakeit.Word(), gofakeit.Word())
 	value := gofakeit.Word()
 
-	t.Log("storing secret...")
 	newSecretCmd := newSecret{AuthenticatedCommand{passphrase}, id, key, value}
-	t.Logf("%% %s\n", strings.Join(newSecretCmd.Command(), " "))
 	testInteractiveCommand(t, dbPath, newSecretCmd)
 
-	t.Log("retrieving secret...")
 	getSecretCmd := getSecret{AuthenticatedCommand{passphrase}, id, key, value}
-	t.Logf("%% %s\n", strings.Join(getSecretCmd.Command(), " "))
 	testInteractiveCommand(t, dbPath, getSecretCmd)
 }
 
@@ -64,11 +61,16 @@ func (i newSecret) Automate(c *expect.Console) (string, error) {
 }
 
 func (i newSecret) Test(t *testing.T, c *expect.Console) {
+	t.Logf("authenticating user %s...", i.id)
 	output, err := i.Automate(c)
 	if err != nil {
+		t.Log("failed.")
 		t.Fatal(err)
 	}
+
+	t.Logf("testing that no output was produced...")
 	if len(output) > 0 {
+		t.Log("failed.")
 		t.Fatal("'new secret' produced output when it should not have")
 	}
 }
@@ -92,12 +94,16 @@ func (i getSecret) Automate(c *expect.Console) (string, error) {
 }
 
 func (i getSecret) Test(t *testing.T, c *expect.Console) {
+	t.Logf("authenticating user %s...", i.id)
 	output, err := i.Automate(c)
 	if err != nil {
+		t.Log("failed.")
 		t.Fatal(err)
 	}
-	t.Log(output)
+
+	t.Logf("testing if result == \"%s\"...", i.value)
 	if output != i.value {
-		t.Fatalf("'get secret' returned incorrect value: %s != %s", output, i.value)
+		t.Log("failed.")
+		t.Fatalf("'get secret' returned incorrect value: %s", output)
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/akb/go-cli"
 )
@@ -28,17 +29,12 @@ import (
 type identifyCommand struct{}
 
 func (c identifyCommand) Help() {
-	fmt.Println(`
-identify - authentication and authorization service
+	fmt.Println(`identify - authentication and authorization service
 
 Usage: identify <subcommand>
 
-Subcommands:
-new     create new resources
-get     get resource content
-delete  delete resources
-listen  listen for http requests
-`)
+Subcommands:`)
+	fmt.Println(strings.Join(c.Subcommands().ListSubcommands(""), "\n"))
 }
 
 func (c identifyCommand) Command(ctx context.Context, args []string) int {
@@ -56,5 +52,6 @@ func (identifyCommand) Subcommands() cli.CLI {
 }
 
 func main() {
-	os.Exit(cli.Main(&identifyCommand{}))
+	cmd := &identifyCommand{}
+	os.Exit(cli.Main(cmd))
 }

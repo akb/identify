@@ -41,13 +41,17 @@ func (i newIdentity) Automate(c *expect.Console) (string, error) {
 }
 
 func (i newIdentity) Test(t *testing.T, c *expect.Console) {
+	t.Logf("running 'new identity' subcommand...")
 	id, err := i.Automate(c)
 	if err != nil {
+		t.Log("failed.")
 		t.Fatal(err)
 	}
 
+	t.Logf("testing if command returned valid uuid...")
 	_, err = uuid.Parse(id)
 	if err != nil {
+		t.Log("failed.")
 		t.Fatal(err)
 	}
 }

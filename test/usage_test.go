@@ -10,7 +10,17 @@ import (
 	"github.com/akb/go-cli"
 )
 
-var commands []string = []string{"", "new"}
+var commands []string = []string{
+	"",
+	"new",
+	"get",
+	"delete",
+	//"help new identity",
+	//"help new secret",
+	//"help get secret",
+	//"help delete token",
+	//"help listen",
+}
 
 func TestCommandUsage(t *testing.T) {
 	for _, c := range commands {
