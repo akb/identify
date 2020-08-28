@@ -1,57 +1,81 @@
 package test
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/Netflix/go-expect"
 	"github.com/brianvoe/gofakeit/v5"
 	"github.com/google/uuid"
 )
 
 func TestNewIdentityCommand(t *testing.T) {
-	dir, err := ioutil.TempDir("", "identify-testing")
+	newIdentity, err := NewCommandTest(
+		[]string{"new", "identity"},
+		map[string]string{"IDENTIFY_DB_PATH": dbPath},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
+	defer newIdentity.Close()
 
-	dbPath := filepath.Join(dir, "identity.db")
-	passphrase := gofakeit.Password(true, true, true, true, true, 33)
-	cmd := newIdentity{AuthenticatedCommand{passphrase}}
-
-	testInteractiveCommand(t, dbPath, cmd)
-}
-
-type newIdentity struct {
-	auth AuthenticatedCommand
-}
-
-func (i newIdentity) Command() []string { return []string{"new", "identity"} }
-
-func (i newIdentity) Automate(c *expect.Console) (string, error) {
-	output, err := i.auth.Authenticate(c)
+	err = newIdentity.Start()
 	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(output), nil
-}
-
-func (i newIdentity) Test(t *testing.T, c *expect.Console) {
-	t.Logf("running 'new identity' subcommand...")
-	id, err := i.Automate(c)
-	if err != nil {
-		t.Log("failed.")
 		t.Fatal(err)
 	}
 
-	t.Logf("testing if command returned valid uuid...")
-	_, err = uuid.Parse(id)
+	newIdentity.Interact(func() {
+		passphrase := gofakeit.Password(true, true, true, true, true, 33)
+
+		err := newIdentity.Authenticate(passphrase)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		newIdentity.Tty().Close()
+
+		output, err := newIdentity.GetOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = uuid.Parse(output)
+		if err != nil {
+			t.Errorf("Failed to parse UUID from: %s\n", output)
+			t.Fatal(err)
+		}
+	})
+
+	newIdentity.Wait()
+}
+
+func GenerateNewIdentity(passphrase string) (id string, err error) {
+	newIdentity, err := NewCommandTest(
+		[]string{"new", "identity"},
+		map[string]string{"IDENTIFY_DB_PATH": dbPath},
+	)
 	if err != nil {
-		t.Log("failed.")
-		t.Fatal(err)
+		return
 	}
+	defer newIdentity.Close()
+
+	err = newIdentity.Start()
+	if err != nil {
+		return
+	}
+
+	newIdentity.Interact(func() {
+		err = newIdentity.Authenticate(passphrase)
+		newIdentity.Tty().Close()
+		if err != nil {
+			return
+		}
+
+		id, err = newIdentity.GetOutput()
+		if err != nil {
+			return
+		}
+	})
+
+	newIdentity.Wait()
+
+	return
 }

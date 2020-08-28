@@ -37,7 +37,7 @@ func (getCommand) Help() {
 
 func (c getCommand) Command(ctx context.Context, args []string) int {
 	c.Help()
-	return 0
+	return 1
 }
 
 func (c getCommand) Subcommands() cli.CLI {

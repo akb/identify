@@ -1,13 +1,10 @@
 package test
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/akb/go-cli"
 )
 
 var commands []string = []string{
@@ -24,18 +21,35 @@ var commands []string = []string{
 
 func TestCommandUsage(t *testing.T) {
 	for _, c := range commands {
-		var stdout, stderr bytes.Buffer
-		cmd := exec.Command(commandName, strings.Fields(c)...)
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			if err.Error() != "exit status 1" {
-				t.Fatal(err)
-			}
+		cmd, err := NewCommandTest(strings.Fields(c), map[string]string{})
+		if err != nil {
+			t.Fatalf("error initializing command \"identify %s\"\n%s\n", c, err)
 		}
 
-		cli.ExpectError(t, cmd.Run())
-		cli.ExpectOutput(t, stdout)
-		cli.ExpectMatch(t, stdout, fmt.Sprintf("Usage: identify %s", c))
+		cmd.Start()
+
+		var output string
+		cmd.Interact(func() {
+			cmd.Tty().Close()
+			output, err = cmd.GetOutput()
+			if err != nil {
+				t.Fatalf("error getting command output for \"identify %s\"\n%s\n", c, err)
+			}
+		})
+
+		err = cmd.Wait()
+		if err != nil && cmd.StatusCode == -1 {
+			t.Fatal(err)
+		}
+
+		pattern := fmt.Sprintf("Usage: identify %s", c)
+		_, err = regexp.Match(pattern, []byte(output))
+		if err != nil {
+			t.Fatalf("error matching command output for \"identify %s\"\n%s\n", c, err)
+		}
+
+		if cmd.StatusCode != 1 {
+			t.Errorf("Expected status code 1, received %d.\n", cmd.StatusCode)
+		}
 	}
 }

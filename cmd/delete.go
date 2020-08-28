@@ -36,7 +36,7 @@ func (deleteCommand) Help() {
 
 func (c deleteCommand) Command(ctx context.Context, args []string) int {
 	c.Help()
-	return 0
+	return 1
 }
 
 func (deleteCommand) Subcommands() cli.CLI {
