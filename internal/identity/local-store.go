@@ -20,6 +20,7 @@ package identity
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -78,6 +79,7 @@ func (s *localStore) NewIdentity(passphrase string) (PublicIdentity, PrivateIden
 		if err != nil {
 			return err
 		}
+		log.Printf("persisting new identity: %s\n%s\n", public.String(), string(marshaled))
 		return b.Put([]byte(public.String()), marshaled)
 	})
 	if err != nil {
@@ -104,6 +106,7 @@ func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
 		if unparsed == nil {
 			return fmt.Errorf("could not find identity for id %s", id)
 		}
+		log.Printf("retrieved identity: %s\n%s\n", id, unparsed)
 
 		return json.Unmarshal(unparsed, &identity)
 	}); err != nil {

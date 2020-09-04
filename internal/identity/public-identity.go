@@ -18,29 +18,26 @@
 package identity
 
 import (
-	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
-	"golang.org/x/crypto/nacl/sign"
 
 	"github.com/google/uuid"
 )
 
 type PublicIdentity interface {
-	SignPublicKey() [32]byte
+	ECDSAPublicKey() *ecdsa.PublicKey
+	ED25519PublicKey() *ed25519.PublicKey
 	SealPublicKey() [32]byte
-	ECDSAPublicKey() (*ecdsa.PublicKey, error)
 
 	String() string
 
@@ -49,23 +46,19 @@ type PublicIdentity interface {
 }
 
 type publicIdentity struct {
-	id uuid.UUID
-
-	signPublicKey  *[32]byte
-	sealPublicKey  *[32]byte
-	ecdsaPublicKey string
-
-	private []byte
+	id               uuid.UUID
+	ecdsaPublicKey   *ecdsa.PublicKey
+	ed25519PublicKey *ed25519.PublicKey
+	sealPublicKey    *[32]byte
+	private          []byte
 }
 
 type jsonPublicIdentity struct {
-	ID string `json:"id"`
-
-	SignPublicKey  string `json:"sign-public-key"`
-	SealPublicKey  string `json:"seal-public-key"`
-	ECDSAPublicKey string `json:"ecdsa-public-key"`
-
-	Private string `json:"private"`
+	ID               string `json:"id"`
+	ECDSAPublicKey   string `json:"ecdsa-public-key"`
+	ED25519PublicKey string `json:"ed25519-public-key"`
+	SealPublicKey    string `json:"seal-public-key"`
+	Private          string `json:"private"`
 }
 
 func NewIdentity(passphrase string) (*publicIdentity, *privateIdentity, error) {
@@ -74,7 +67,16 @@ func NewIdentity(passphrase string) (*publicIdentity, *privateIdentity, error) {
 		return nil, nil, err
 	}
 
-	signPublicKey, signPrivateKey, err := sign.GenerateKey(rand.Reader)
+	ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	ecdsaPublicKey, ok := ecdsaPrivateKey.Public().(*ecdsa.PublicKey)
+	if !ok {
+		panic("ecdsa private key did not produce a valid public key")
+	}
+
+	ed25519PublicKey, ed25519PrivateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,47 +86,19 @@ func NewIdentity(passphrase string) (*publicIdentity, *privateIdentity, error) {
 		return nil, nil, err
 	}
 
-	ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	marshaledECDSAKey, err := x509.MarshalPKCS8PrivateKey(ecdsaPrivateKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	ecdsaPrivateKeyBlock := pem.Block{Type: "EC PRIVATE KEY", Bytes: marshaledECDSAKey}
-	var encodedECDSAPrivateKey bytes.Buffer
-	if err := pem.Encode(&encodedECDSAPrivateKey, &ecdsaPrivateKeyBlock); err != nil {
-		return nil, nil, err
-	}
-
-	marshaledECDSAPublicKey, err := x509.MarshalPKIXPublicKey(ecdsaPrivateKey.Public())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	ecdsaPublicKeyBlock := pem.Block{Type: "EC PUBLIC KEY", Bytes: marshaledECDSAPublicKey}
-	var encodedECDSAPublicKey bytes.Buffer
-	if err := pem.Encode(&encodedECDSAPublicKey, &ecdsaPublicKeyBlock); err != nil {
-		return nil, nil, err
-	}
-	fmt.Printf("key: %s\n", encodedECDSAPublicKey.String())
-
 	public := publicIdentity{
-		id:             id,
-		signPublicKey:  signPublicKey,
-		sealPublicKey:  sealPublicKey,
-		ecdsaPublicKey: encodedECDSAPublicKey.String(),
-		private:        nil,
+		id:               id,
+		ecdsaPublicKey:   ecdsaPublicKey,
+		ed25519PublicKey: &ed25519PublicKey,
+		sealPublicKey:    sealPublicKey,
+		private:          nil,
 	}
 
 	private := privateIdentity{
-		public:          &public,
-		signPrivateKey:  signPrivateKey,
-		sealPrivateKey:  sealPrivateKey,
-		ecdsaPrivateKey: encodedECDSAPrivateKey.Bytes(),
+		public:            &public,
+		ecdsaPrivateKey:   ecdsaPrivateKey,
+		ed25519PrivateKey: &ed25519PrivateKey,
+		sealPrivateKey:    sealPrivateKey,
 	}
 
 	marshaled, err := json.Marshal(private)
@@ -148,31 +122,16 @@ func (i publicIdentity) String() string {
 	return i.id.String()
 }
 
-func (i publicIdentity) SignPublicKey() [32]byte {
-	return *i.signPublicKey
-}
-
 func (i publicIdentity) SealPublicKey() [32]byte {
 	return *i.sealPublicKey
 }
 
-func (i publicIdentity) ECDSAPublicKey() (*ecdsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(i.ecdsaPublicKey))
-	if block == nil || block.Type != "EC PUBLIC KEY" {
-		// TODO: do this at creation and drop error from signature
-		return nil, fmt.Errorf("unable to parse public key")
-	}
+func (i publicIdentity) ED25519PublicKey() *ed25519.PublicKey {
+	return i.ed25519PublicKey
+}
 
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse public key")
-	}
-
-	if ecdsaKey, ok := key.(*ecdsa.PublicKey); ok {
-		return ecdsaKey, nil
-	}
-
-	return nil, fmt.Errorf("key is not an ecdsa public key")
+func (i publicIdentity) ECDSAPublicKey() *ecdsa.PublicKey {
+	return i.ecdsaPublicKey
 }
 
 func (i *publicIdentity) Authenticate(passphrase string) (PrivateIdentity, error) {
@@ -196,14 +155,19 @@ func (i *publicIdentity) SealAnonymous(value string) ([]byte, error) {
 }
 
 func (i publicIdentity) MarshalJSON() ([]byte, error) {
+	marshaledECDSAPublicKey, err := x509.MarshalPKIXPublicKey(i.ecdsaPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
 	return json.Marshal(jsonPublicIdentity{
 		ID: i.id.String(),
 
-		SignPublicKey:  base64.RawStdEncoding.EncodeToString(i.signPublicKey[:]),
-		SealPublicKey:  base64.RawStdEncoding.EncodeToString(i.sealPublicKey[:]),
-		ECDSAPublicKey: string(i.ecdsaPublicKey),
+		ECDSAPublicKey:   EncodeToString(marshaledECDSAPublicKey),
+		ED25519PublicKey: EncodeToString([]byte(*i.ed25519PublicKey)),
+		SealPublicKey:    EncodeToString(i.sealPublicKey[:]),
 
-		Private: base64.RawStdEncoding.EncodeToString(i.private),
+		Private: EncodeToString(i.private),
 	})
 }
 
@@ -220,23 +184,35 @@ func (i *publicIdentity) UnmarshalJSON(marshaled []byte) error {
 
 	i.id = id
 
-	i.signPublicKey = &[32]byte{}
-	signPublicKey, err := base64.RawStdEncoding.DecodeString(unmarshaled.SignPublicKey)
+	decodedECDSAPublicKey, err := DecodeString(unmarshaled.ECDSAPublicKey)
 	if err != nil {
 		return err
 	}
-	copy(i.signPublicKey[:], signPublicKey[:32])
+	untypedECDSAPublicKey, err := x509.ParsePKIXPublicKey(decodedECDSAPublicKey)
+	if err != nil {
+		return err
+	}
+	ecdsaPublicKey, ok := untypedECDSAPublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("key is not a valid ecdsa public key")
+	}
+	i.ecdsaPublicKey = ecdsaPublicKey
 
-	sealPublicKey, err := base64.RawStdEncoding.DecodeString(unmarshaled.SealPublicKey)
+	decodedED25519PublicKey, err := DecodeString(unmarshaled.ED25519PublicKey)
+	if err != nil {
+		return err
+	}
+	ed25519PublicKey := ed25519.PublicKey(decodedED25519PublicKey)
+	i.ed25519PublicKey = &ed25519PublicKey
+
+	sealPublicKey, err := DecodeString(unmarshaled.SealPublicKey)
 	if err != nil {
 		return err
 	}
 	i.sealPublicKey = &[32]byte{}
 	copy(i.sealPublicKey[:], sealPublicKey[:32])
 
-	i.ecdsaPublicKey = unmarshaled.ECDSAPublicKey
-
-	private, err := base64.RawStdEncoding.DecodeString(unmarshaled.Private)
+	private, err := DecodeString(unmarshaled.Private)
 	if err != nil {
 		return err
 	}

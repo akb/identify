@@ -133,12 +133,12 @@ func (s *localStore) New(identity identity.PrivateIdentity) (string, string, err
 		return "", "", err
 	}
 
-	access, err := at.SignedString(identity.SignPrivateKey())
+	access, err := at.SignedString(identity.ED25519PrivateKey())
 	if err != nil {
 		return "", "", err
 	}
 
-	refresh, err := rt.SignedString(identity.SignPrivateKey())
+	refresh, err := rt.SignedString(identity.ED25519PrivateKey())
 	if err != nil {
 		return "", "", err
 	}

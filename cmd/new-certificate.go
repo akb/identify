@@ -93,23 +93,7 @@ func (c newCertificateCommand) Command(ctx context.Context, args []string) int {
 		BasicConstraintsValid: true,
 	}
 
-	publicKey, err := i.ECDSAPublicKey()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	privateKey, err := i.ECDSAPrivateKey()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	certificate, err := x509.CreateCertificate(
-		rand.Reader, &template, &template, publicKey, privateKey)
-	if err != nil {
-		log.Fatalf("error while creating certificate: %s\n", err.Error())
-	}
-
-	certFile, err := os.Create(certificatePath)
+	encodedKey, err := x509.MarshalPKCS8PrivateKey(i.ECDSAPrivateKey())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,19 +102,27 @@ func (c newCertificateCommand) Command(ctx context.Context, args []string) int {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	certBlock := pem.Block{Type: "CERTIFICATE", Bytes: certificate}
-	if err := pem.Encode(certFile, &certBlock); err != nil {
-		log.Fatal(err)
-	}
-
-	encodedKey, err := x509.MarshalECPrivateKey(privateKey)
-	if err != nil {
-		log.Fatal(err)
-	}
+	defer keyFile.Close()
 
 	keyBlock := pem.Block{Type: "PRIVATE KEY", Bytes: encodedKey}
 	if err := pem.Encode(keyFile, &keyBlock); err != nil {
+		log.Fatal(err)
+	}
+
+	certificate, err := x509.CreateCertificate(
+		rand.Reader, &template, &template, i.ECDSAPublicKey(), i.ECDSAPrivateKey())
+	if err != nil {
+		log.Fatalf("error while creating certificate: %s\n", err.Error())
+	}
+
+	certFile, err := os.Create(certificatePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer certFile.Close()
+
+	certBlock := pem.Block{Type: "CERTIFICATE", Bytes: certificate}
+	if err := pem.Encode(certFile, &certBlock); err != nil {
 		log.Fatal(err)
 	}
 

@@ -19,15 +19,20 @@ package identity
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 
 	"golang.org/x/crypto/nacl/box"
+)
+
+var (
+	DecodeString   = base64.RawStdEncoding.DecodeString
+	EncodeToString = base64.RawStdEncoding.EncodeToString
 )
 
 var (
@@ -37,10 +42,9 @@ var (
 type PrivateIdentity interface {
 	PublicIdentity
 
-	SignPrivateKey() [64]byte
+	ECDSAPrivateKey() *ecdsa.PrivateKey
+	ED25519PrivateKey() *ed25519.PrivateKey
 	SealPrivateKey() [32]byte
-
-	ECDSAPrivateKey() (*ecdsa.PrivateKey, error)
 
 	OpenMessage(PublicIdentity, []byte) (string, error)
 	SealMessage(PublicIdentity, string) ([]byte, error)
@@ -49,29 +53,29 @@ type PrivateIdentity interface {
 }
 
 type jsonPrivateIdentity struct {
-	SignPrivateKey  string `json:"sign-private-key"`
-	SealPrivateKey  string `json:"seal-private-key"`
-	ECDSAPrivateKey string `json:"ecdsa-private-key"`
+	ECDSAPrivateKey   string `json:"ecdsa-private-key"`
+	ED25519PrivateKey string `json:"ed25519-private-key"`
+	SealPrivateKey    string `json:"seal-private-key"`
 }
 
 type privateIdentity struct {
 	public *publicIdentity
 
-	signPrivateKey  *[64]byte
-	sealPrivateKey  *[32]byte
-	ecdsaPrivateKey []byte
+	ecdsaPrivateKey   *ecdsa.PrivateKey
+	ed25519PrivateKey *ed25519.PrivateKey
+	sealPrivateKey    *[32]byte
 }
 
-func (i privateIdentity) SignPublicKey() [32]byte {
-	return i.public.SignPublicKey()
+func (i privateIdentity) ECDSAPublicKey() *ecdsa.PublicKey {
+	return i.public.ECDSAPublicKey()
+}
+
+func (i privateIdentity) ED25519PublicKey() *ed25519.PublicKey {
+	return i.public.ED25519PublicKey()
 }
 
 func (i privateIdentity) SealPublicKey() [32]byte {
 	return i.public.SealPublicKey()
-}
-
-func (i privateIdentity) ECDSAPublicKey() (*ecdsa.PublicKey, error) {
-	return i.public.ECDSAPublicKey()
 }
 
 func (i privateIdentity) String() string {
@@ -79,34 +83,19 @@ func (i privateIdentity) String() string {
 }
 
 func (i privateIdentity) Authenticate(passphrase string) (PrivateIdentity, error) {
-	return nil, errorCantAuthenticate
+	return i, nil
 }
 
-func (i privateIdentity) SignPrivateKey() [64]byte {
-	return *i.signPrivateKey
+func (i privateIdentity) ED25519PrivateKey() *ed25519.PrivateKey {
+	return i.ed25519PrivateKey
+}
+
+func (i privateIdentity) ECDSAPrivateKey() *ecdsa.PrivateKey {
+	return i.ecdsaPrivateKey
 }
 
 func (i privateIdentity) SealPrivateKey() [32]byte {
 	return *i.sealPrivateKey
-}
-
-func (i privateIdentity) ECDSAPrivateKey() (*ecdsa.PrivateKey, error) {
-	block, _ := pem.Decode(i.ecdsaPrivateKey)
-	if block == nil || block.Type != "EC PRIVATE KEY" {
-		// TODO: do this at creation and drop error from signature
-		return nil, fmt.Errorf("unable to parse private key")
-	}
-
-	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse private key")
-	}
-
-	if ecdsaKey, ok := key.(*ecdsa.PrivateKey); ok {
-		return ecdsaKey, nil
-	}
-
-	return nil, fmt.Errorf("key is not an ecdsa private key")
 }
 
 func (i privateIdentity) OpenMessage(
@@ -148,10 +137,15 @@ func (i privateIdentity) SealAnonymous(value string) ([]byte, error) {
 }
 
 func (i privateIdentity) MarshalJSON() ([]byte, error) {
+	marshaledECDSAPrivateKey, err := x509.MarshalPKCS8PrivateKey(i.ecdsaPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
 	return json.Marshal(jsonPrivateIdentity{
-		SignPrivateKey:  base64.RawStdEncoding.EncodeToString(i.signPrivateKey[:]),
-		SealPrivateKey:  base64.RawStdEncoding.EncodeToString(i.sealPrivateKey[:]),
-		ECDSAPrivateKey: base64.RawStdEncoding.EncodeToString(i.ecdsaPrivateKey),
+		ECDSAPrivateKey:   EncodeToString(marshaledECDSAPrivateKey),
+		ED25519PrivateKey: EncodeToString([]byte(*i.ed25519PrivateKey)),
+		SealPrivateKey:    EncodeToString(i.sealPrivateKey[:]),
 	})
 }
 
@@ -161,25 +155,33 @@ func (i *privateIdentity) UnmarshalJSON(marshaled []byte) error {
 		return err
 	}
 
-	signPrivateKey, err := base64.RawStdEncoding.DecodeString(unmarshaled.SignPrivateKey)
+	decodedECDSAPrivateKey, err := DecodeString(unmarshaled.ECDSAPrivateKey)
 	if err != nil {
 		return err
 	}
-	i.signPrivateKey = &[64]byte{}
-	copy(i.signPrivateKey[:], signPrivateKey[:64])
+	untypedECDSAPrivateKey, err := x509.ParsePKCS8PrivateKey(decodedECDSAPrivateKey)
+	if err != nil {
+		return err
+	}
+	ecdsaPrivateKey, ok := untypedECDSAPrivateKey.(*ecdsa.PrivateKey)
+	if !ok {
+		return fmt.Errorf("key is not a valid ecdsa private key")
+	}
+	i.ecdsaPrivateKey = ecdsaPrivateKey
 
-	sealPrivateKey, err := base64.RawStdEncoding.DecodeString(unmarshaled.SealPrivateKey)
+	decodedED25519PrivateKey, err := DecodeString(unmarshaled.ED25519PrivateKey)
+	if err != nil {
+		return err
+	}
+	ed25519PrivateKey := ed25519.PrivateKey(decodedED25519PrivateKey)
+	i.ed25519PrivateKey = &ed25519PrivateKey
+
+	sealPrivateKey, err := DecodeString(unmarshaled.SealPrivateKey)
 	if err != nil {
 		return err
 	}
 	i.sealPrivateKey = &[32]byte{}
 	copy(i.sealPrivateKey[:], sealPrivateKey[:32])
-
-	ecdsaPrivateKey, err := base64.RawStdEncoding.DecodeString(unmarshaled.ECDSAPrivateKey)
-	if err != nil {
-		return err
-	}
-	i.ecdsaPrivateKey = ecdsaPrivateKey
 
 	return nil
 }
