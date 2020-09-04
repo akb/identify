@@ -15,64 +15,68 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package http
+package web
 
 import (
+	"crypto/tls"
+	"html/template"
+	"log"
 	"mime"
 	"net/http"
 	"strings"
 
-	"github.com/akb/identify/internal/http/auth"
+	"github.com/justinas/nosurf"
+
 	"github.com/akb/identify/internal/identity"
-	//"github.com/akb/identify/internal/token"
 )
 
-type ServerConfig struct {
-	Addr  string
-	Realm string
+type Config struct {
+	ServerName string
+	Address    string
+	CertPath   string
+	KeyPath    string
 
 	IdentityStore identity.Store
-	//TokenStore    token.Store
 }
 
-type api struct {
-	ServerConfig
+func NewServer(c *Config) (*http.Server, error) {
+	certificate, err := tls.LoadX509KeyPair(c.CertPath, c.KeyPath)
+	if err != nil {
+		return nil, err
+	}
 
-	auth auth.Provider
-}
+	template, err := template.ParseGlob("web/templates/*")
+	if err != nil {
+		return nil, err
+	}
 
-func NewServer(c ServerConfig) *http.Server {
+	h := handler{http.NewServeMux(), template, c.IdentityStore}
+	h.Handle("/", http.HandlerFunc(h.identify))
+	h.Handle("/new", http.HandlerFunc(h.new))
+
+	log.Printf("created new identify server: %s\n", c.ServerName)
 	return &http.Server{
-		Addr:    c.Addr,
-		Handler: api{c, auth.Provider{c.Realm, c.IdentityStore}}, //, c.TokenStore}},
-	}
+		Addr:    c.Address,
+		Handler: nosurf.New(h),
+		TLSConfig: &tls.Config{
+			ServerName:   c.ServerName,
+			Certificates: []tls.Certificate{certificate},
+		},
+	}, nil
 }
 
-func (a api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allow", "POST")
-			http.Error(w, "Only POST requests are allowed for this endpoint.",
-				http.StatusMethodNotAllowed)
-			return
-		}
-		a.new(w, r)
+type Page struct {
+	Encoding     string
+	LanguageCode string
+	Title        string
+	CSRFToken    string
+}
 
-		//} else if r.URL.Path == "/token" {
-		//	if r.Method == http.MethodPost {
-		//		a.auth.RequireBasicAuth(http.HandlerFunc(a.newToken)).ServeHTTP(w, r)
-		//		//} else if r.Method == http.MethodDelete {
-		//		//	a.auth.RequireTokenAuth(http.HandlerFunc(a.deleteToken)).ServeHTTP(w, r)
-		//	} else {
-		//		w.Header().Set("Allow", "POST") //, DELETE")
-		//		http.Error(w,
-		//			"Only POST requests are allowed for this endpoint.",
-		//			http.StatusMethodNotAllowed)
-		//		return
-		//	}
-	} else {
-		http.NotFound(w, r)
-	}
+type handler struct {
+	*http.ServeMux
+	*template.Template
+
+	IdentityStore identity.Store
 }
 
 func hasContentType(r *http.Request, mimetype string) bool {

@@ -1,0 +1,50 @@
+{{- /*
+Identify authentication and authorization service
+
+Copyright (C) 2020 Alexei Broner
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/ -}}
+
+{{define "new-identity-form"}}
+<!DOCTYPE html>
+<html lang="{{.LanguageCode}}">
+  <head>
+    <meta charset="{{.Encoding}}">
+    <title>{{.Title}}</title>
+    <script defer>
+      const submit = document.querySelector("[type=submit]");
+      submit.onClick = () => {
+        alert("foobar");
+      };
+    </script>
+  </head>
+  <body>
+    <div id="new-identity-form">
+      <form method="POST" action="/new">
+        <div class="hidden-field">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        </div>
+        <div class="field">
+          <label for="passphrase">Passphrase</label>
+          <input id="passphrase" name="passphrase" type="password">
+        </div>
+        <div class="field">
+          <button type="submit">Submit</button>
+        </div>
+      </form>
+    </div>
+  </body>
+</html>
+{{end}}

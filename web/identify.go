@@ -15,42 +15,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package web
 
 import (
-	"context"
-	"fmt"
+	"net/http"
 
-	"github.com/akb/go-cli"
-
-	"github.com/akb/identify"
+	"github.com/justinas/nosurf"
 )
 
-type newCommand struct{}
+func (h *handler) identify(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		http.Error(w, "Only GET requests are allowed for this endpoint.",
+			http.StatusMethodNotAllowed)
+		return
+	}
 
-func (newCommand) Help() {
-	fmt.Println(`identify - authentication and authorization service
+	page := &Page{
+		Encoding:     "utf-8",
+		LanguageCode: "en",
+		Title:        "identify",
+		CSRFToken:    nosurf.Token(r),
+	}
 
-Usage: identify new <resource>
-
-Create new resources.
-
-Resources:
-identity
-secret
-certificate
-`)
-}
-
-func (c newCommand) Command(ctx context.Context, args []string) int {
-	c.Help()
-	return 1
-}
-
-func (newCommand) Subcommands() cli.CLI {
-	return cli.CLI{
-		"identity":    &newIdentityCommand{},
-		"secret":      identify.RequiresUserAuth(&newSecretCommand{}),
-		"certificate": identify.RequiresUserAuth(&newCertificateCommand{}),
+	if err := h.ExecuteTemplate(w, "passphrase", page); err != nil {
+		http.Error(w, err.Error(), 500)
 	}
 }

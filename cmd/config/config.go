@@ -73,3 +73,30 @@ func GetTokenDBPath() (string, error) {
 	}
 	return tokenDBPath, nil
 }
+
+func GetCertificatePath() (string, error) {
+	certificatePath := os.Getenv("IDENTIFY_CERTIFICATE_PATH")
+	if len(certificatePath) == 0 {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("A path to a PEM-encoded certificate file must be " +
+				"provided by the environment variable IDENTIFY_CERTIFICATE_PATH.")
+		}
+		return path.Join(home, ".identify", "certificate.pem"), nil
+	}
+	return certificatePath, nil
+}
+
+func GetCertificateKeyPath() (string, error) {
+	certificateKeyPath := os.Getenv("IDENTIFY_CERTIFICATE_KEY_PATH")
+	if len(certificateKeyPath) == 0 {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("A path to a PEM-encoded certificate key file " +
+				"must be provided by the environment variable " +
+				"IDENTIFY_CERTIFICATE_PATH.")
+		}
+		return path.Join(home, ".identify", "key.pem"), nil
+	}
+	return certificateKeyPath, nil
+}

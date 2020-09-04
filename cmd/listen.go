@@ -21,12 +21,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/akb/identify/cmd/config"
-	"github.com/akb/identify/internal/http"
 	"github.com/akb/identify/internal/identity"
 	"github.com/akb/identify/internal/token"
+	"github.com/akb/identify/web"
 )
 
 type listenCommand struct{}
@@ -45,36 +44,50 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 
 	dbPath, err := config.GetDBPath()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		log.Fatal(err.Error())
 	}
 
 	tokenDBPath, err := config.GetTokenDBPath()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		log.Fatal(err.Error())
+	}
+
+	certPath, err := config.GetCertificatePath()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	keyPath, err := config.GetCertificateKeyPath()
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
+		log.Printf("An error occurred while opening identity database file:\n")
+		log.Fatal(err.Error())
 	}
 	defer store.Close()
 
 	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
-		fmt.Printf("An error occurred while opening token database file:\n")
-		fmt.Println(err.Error())
-		os.Exit(1)
+		log.Printf("An error occurred while opening token database file:\n")
+		log.Fatal(err.Error())
 	}
 	defer tokenStore.Close()
 
-	server := http.NewServer(
-		http.ServerConfig{address, realm, store}) //, tokenStore})
+	server, err := web.NewServer(&web.Config{
+		ServerName:    realm,
+		Address:       address,
+		CertPath:      certPath,
+		KeyPath:       keyPath,
+		IdentityStore: store,
+	})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
-	fmt.Printf("Identity API listening for HTTP requests on %s...\n", address)
-	log.Fatal(server.ListenAndServe())
+	log.Printf("Identity API listening for HTTP requests on %s...\n", address)
+	log.Fatal(server.ListenAndServeTLS("", ""))
 	return 0
 }
