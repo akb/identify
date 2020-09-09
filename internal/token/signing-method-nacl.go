@@ -18,6 +18,7 @@
 package token
 
 import (
+	"crypto/ed25519"
 	"encoding/base64"
 	"fmt"
 
@@ -39,12 +40,18 @@ func init() {
 type signingMethodNaCl struct{}
 
 func (signingMethodNaCl) Verify(message, signature string, key interface{}) error {
-	publicKey, ok := key.([32]byte)
+	publicKey, ok := key.(*ed25519.PublicKey)
 	if !ok {
 		return ErrorInvalidPublicKey
 	}
 
-	if _, ok = sign.Open(nil, []byte(message), &publicKey); !ok {
+	publicKeyBytes, ok := (interface{}(*publicKey)).([]byte)
+	if !ok {
+		return ErrorInvalidPublicKey
+	}
+	var publicKeyByteArray [32]byte
+	copy(publicKeyByteArray[:], publicKeyBytes[:32])
+	if _, ok = sign.Open(nil, []byte(message), &publicKeyByteArray); !ok {
 		return ErrorUnauthenticMessage
 	}
 
@@ -52,11 +59,19 @@ func (signingMethodNaCl) Verify(message, signature string, key interface{}) erro
 }
 
 func (signingMethodNaCl) Sign(message string, key interface{}) (string, error) {
-	privateKey, ok := key.([64]byte)
+	privateKey, ok := key.(*ed25519.PrivateKey)
 	if !ok {
 		return "", ErrorInvalidPrivateKey
 	}
-	signature := sign.Sign(nil, []byte(message), &privateKey)
+
+	privateKeyBytes, ok := (interface{}(*privateKey)).([]byte)
+	if !ok {
+		return "", ErrorInvalidPrivateKey
+	}
+	var privateKeyByteArray [64]byte
+	copy(privateKeyByteArray[:], privateKeyBytes[:64])
+
+	signature := sign.Sign(nil, []byte(message), &privateKeyByteArray)
 	return base64.RawStdEncoding.EncodeToString(signature), nil
 }
 

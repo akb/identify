@@ -18,19 +18,30 @@
 package web
 
 import (
+	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/justinas/nosurf"
 )
 
-func (h *handler) identify(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", "GET")
-		http.Error(w, "Only GET requests are allowed for this endpoint.",
-			http.StatusMethodNotAllowed)
-		return
-	}
+type NewTokenResponse struct {
+	Token string `json:"token"`
+}
 
+func (h *handler) identify(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		h.showPassphraseChallenge(w, r)
+	} else if r.Method == http.MethodPost {
+		h.createNewToken(w, r)
+	} else {
+		w.Header().Set("Allow", "GET, POST")
+		http.Error(w, "Only GET and POST requests are allowed for this endpoint.",
+			http.StatusMethodNotAllowed)
+	}
+}
+
+func (h *handler) showPassphraseChallenge(w http.ResponseWriter, r *http.Request) {
 	page := &Page{
 		Encoding:     "utf-8",
 		LanguageCode: "en",
@@ -41,4 +52,42 @@ func (h *handler) identify(w http.ResponseWriter, r *http.Request) {
 	if err := h.ExecuteTemplate(w, "passphrase", page); err != nil {
 		http.Error(w, err.Error(), 500)
 	}
+}
+
+func (h *handler) createNewToken(w http.ResponseWriter, r *http.Request) {
+	id := r.PostFormValue("id")
+	passphrase := r.PostFormValue("passphrase")
+
+	identity, err := h.IdentityStore.GetIdentity(id)
+	if err != nil {
+		log.Printf("error while retrieving identity: %s\n", err.Error())
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	private, err := identity.Authenticate(passphrase)
+	if err != nil {
+		log.Printf("error while decrypting private identity: %s\n", err.Error())
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	token, _, err := h.TokenStore.New(private)
+	if err != nil {
+		log.Printf("error while creating token: %s\n", err.Error())
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("new token created for user: %s\n", id)
+
+	response, err := json.Marshal(NewTokenResponse{token})
+	if err != nil {
+		log.Printf("error while marshaling json response: %s\n", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
 }

@@ -79,15 +79,14 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 	server, err := web.NewServer(&web.Config{
 		ServerName:    realm,
 		Address:       address,
-		CertPath:      certPath,
-		KeyPath:       keyPath,
 		IdentityStore: store,
+		TokenStore:    tokenStore,
 	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	log.Printf("Identity API listening for HTTP requests on %s...\n", address)
-	log.Fatal(server.ListenAndServeTLS("", ""))
+	log.Fatal(server.ListenAndServeTLS(certPath, keyPath))
 	return 0
 }

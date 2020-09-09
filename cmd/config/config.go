@@ -26,7 +26,7 @@ import (
 func GetHTTPAddress() string {
 	address := os.Getenv("IDENTIFY_HTTP_ADDRESS")
 	if len(address) == 0 {
-		return ":8080"
+		return "0.0.0.0:8443"
 	}
 	return address
 }

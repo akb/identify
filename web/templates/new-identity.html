@@ -17,40 +17,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */ -}}
 
-{{define "passphrase"}}
+{{define "new-identity"}}
 <!DOCTYPE html>
 <html lang="{{.LanguageCode}}">
   <head>
     <meta charset="{{.Encoding}}">
     <title>{{.Title}}</title>
-    <script defer>
-      const submit = document.querySelector("[type=submit]");
-      submit.onClick = () => {
-        alert("foobar");
-      };
-    </script>
   </head>
   <body>
-    <div id="passphrase-challenge">
-      <form method="POST" action="/">
-        <div class="hidden-field">
-          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        </div>
-        <div class="field">
-          <label for="id">ID</label>
-          <input id="id" name="id" type="text">
-        </div>
-        <div class="field">
-          <label for="passphrase">Passphrase</label>
-          <input id="passphrase" name="passphrase" type="password">
-        </div>
-        <div class="field">
-          <button type="submit">Submit</button>
-        </div>
-      </form>
-    </div>
-    <div>
-      <a href="/new">Create a new identity</a>
+    <div id="new-identity">
+      <h1>New identity created</h1>
+      <div>Your new ID is: <span data-testid="id">{{.ID}}</span></div>
     </div>
   </body>
 </html>

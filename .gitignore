@@ -1,1 +1,3 @@
 bin
+web/selenium/*
+!web/selenium/*.go

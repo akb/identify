@@ -61,14 +61,19 @@ func (h *handler) showNewIdentityForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type NewIdentityPage struct {
+	*Page
+	ID string
+}
+
 func (h *handler) createNewIdentity(w http.ResponseWriter, r *http.Request) {
+	log.Print("creating new identity...")
 	passphrase, err := extractPassphrase(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	log.Print("creating new identity...")
 	public, _, err := h.IdentityStore.NewIdentity(passphrase)
 	if err != nil {
 		log.Printf("error creating new identity: %s\n", err.Error())
@@ -77,15 +82,32 @@ func (h *handler) createNewIdentity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("new identity created: %s\n", public.String())
-	response, err := json.Marshal(NewIdentityResponse{public.String()})
-	if err != nil {
-		log.Printf("error marshaling json response: %s\n", err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+
+	// TODO: this, if JSON is requested
+	// response, err := json.Marshal(NewIdentityResponse{public.String()})
+	// if err != nil {
+	// 	log.Printf("error marshaling json response: %s\n", err.Error())
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+	// w.Header().Set("Content-Type", "application/json")
+	// w.Write(response)
+
+	page := &NewIdentityPage{
+		Page: &Page{
+			Encoding:     "utf-8",
+			LanguageCode: "en",
+			Title:        "identify",
+			CSRFToken:    nosurf.Token(r),
+		},
+		ID: public.String(),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
+	log.Print("rendering new identity notification")
+	if err := h.ExecuteTemplate(w, "new-identity", page); err != nil {
+		log.Printf("error while rendering new identity form: %s\n", err.Error())
+		http.Error(w, err.Error(), 500)
+	}
 }
 
 func extractPassphrase(w http.ResponseWriter, r *http.Request) (string, error) {

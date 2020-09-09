@@ -19,6 +19,7 @@ package web
 
 import (
 	"crypto/tls"
+	"fmt"
 	"html/template"
 	"log"
 	"mime"
@@ -26,42 +27,45 @@ import (
 	"strings"
 
 	"github.com/justinas/nosurf"
+	"github.com/unrolled/logger"
 
 	"github.com/akb/identify/internal/identity"
+	"github.com/akb/identify/internal/token"
 )
 
 type Config struct {
 	ServerName string
 	Address    string
-	CertPath   string
-	KeyPath    string
 
 	IdentityStore identity.Store
+	TokenStore    token.Store
 }
 
 func NewServer(c *Config) (*http.Server, error) {
-	certificate, err := tls.LoadX509KeyPair(c.CertPath, c.KeyPath)
-	if err != nil {
-		return nil, err
-	}
-
 	template, err := template.ParseGlob("web/templates/*")
 	if err != nil {
 		return nil, err
 	}
 
-	h := handler{http.NewServeMux(), template, c.IdentityStore}
+	h := handler{http.NewServeMux(), template, c.IdentityStore, c.TokenStore}
 	h.Handle("/", http.HandlerFunc(h.identify))
 	h.Handle("/new", http.HandlerFunc(h.new))
 
+	// TODO: make this debug-only
+	csrfHandler := nosurf.New(h)
+	csrfHandler.SetFailureHandler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			message := fmt.Sprintln("<h1>Bad Request</h1>") +
+				fmt.Sprintf("<p>%s</p>", nosurf.Reason(r).Error())
+			http.Error(w, message, 400)
+		}),
+	)
+
 	log.Printf("created new identify server: %s\n", c.ServerName)
 	return &http.Server{
-		Addr:    c.Address,
-		Handler: nosurf.New(h),
-		TLSConfig: &tls.Config{
-			ServerName:   c.ServerName,
-			Certificates: []tls.Certificate{certificate},
-		},
+		Addr:      c.Address,
+		Handler:   logger.New().Handler(csrfHandler),
+		TLSConfig: &tls.Config{ServerName: c.ServerName},
 	}, nil
 }
 
@@ -77,6 +81,7 @@ type handler struct {
 	*template.Template
 
 	IdentityStore identity.Store
+	TokenStore    token.Store
 }
 
 func hasContentType(r *http.Request, mimetype string) bool {

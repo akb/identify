@@ -20,6 +20,7 @@ package token
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -31,7 +32,7 @@ import (
 
 type Store interface {
 	New(identity.PrivateIdentity) (string, string, error)
-	Parse(string) (*jwt.Token, error)
+	//Parse(string) (*jwt.Token, error)
 	Delete(string, string) error
 	Close()
 }
@@ -160,6 +161,7 @@ func (s *localStore) sweep() error {
 	var atk, attk, rtk, rttk [][]byte
 	var err error
 
+	log.Println("scanning for expired tokens...")
 	atk, attk, err = s.getExpiredTokens(accessTTLBucket, accessMaxAge)
 	if err != nil {
 		return err
@@ -174,7 +176,9 @@ func (s *localStore) sweep() error {
 		return nil
 	}
 
+	log.Println("deleting expired tokens...")
 	return s.db.Update(func(tx *bolt.Tx) error {
+		var count int
 		for _, b := range []struct {
 			*bolt.Bucket
 			keys [][]byte
@@ -184,12 +188,14 @@ func (s *localStore) sweep() error {
 			{tx.Bucket(tokenBucket), rtk},
 			{tx.Bucket(refreshTTLBucket), rttk},
 		} {
+			count += len(b.keys)
 			for _, key := range b.keys {
 				if err = b.Delete(key); err != nil {
 					return err
 				}
 			}
 		}
+		log.Printf("deleted %d expired tokens.\n", count)
 		return nil
 	})
 }

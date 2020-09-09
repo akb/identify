@@ -91,6 +91,8 @@ func (c newCertificateCommand) Command(ctx context.Context, args []string) int {
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 
 		BasicConstraintsValid: true,
+
+		DNSNames: []string{"localhost"},
 	}
 
 	encodedKey, err := x509.MarshalPKCS8PrivateKey(i.ECDSAPrivateKey())
