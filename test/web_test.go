@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"testing"
@@ -17,7 +16,6 @@ import (
 )
 
 var client *http.Client
-var jar http.CookieJar
 
 func init() {
 	rootCAs, _ := x509.SystemCertPool()
@@ -39,13 +37,7 @@ func init() {
 		log.Fatal("no certs appended, using system certs only")
 	}
 
-	jar, err = cookiejar.New(&cookiejar.Options{})
-	if err != nil {
-		log.Fatalf("error creating cookie jar: %s", err.Error())
-	}
-
 	client = &http.Client{
-		Jar: jar,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: false,

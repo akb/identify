@@ -67,7 +67,6 @@ func NewCommandTest(args []string, env map[string]string) (*CommandTest, error) 
 
 	cmd.Stdin = c.Tty()
 	cmd.Stdout = c.Tty()
-	cmd.Stderr = c.Tty()
 
 	return &CommandTest{c, cmd, commandName, args, -1, "", &sync.WaitGroup{}}, nil
 }

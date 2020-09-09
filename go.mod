@@ -5,7 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go/storage v1.10.0
 	github.com/Netflix/go-expect v0.0.0-20200312175327-da48e75238e2
-	github.com/PuerkitoBio/goquery v1.5.1 // indirect
+	github.com/PuerkitoBio/goquery v1.5.1
 	github.com/akb/go-cli v0.0.0
 	github.com/boltdb/bolt v1.3.1
 	github.com/brianvoe/gofakeit/v5 v5.9.1
