@@ -30,7 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
 )
 
@@ -49,7 +48,7 @@ a bogus cert to get the http server running.
 }
 
 func (c newCertificateCommand) Command(ctx context.Context, args []string) int {
-	i := identify.IdentityFromContext(ctx)
+	i := IdentityFromContext(ctx)
 	if i == nil {
 		log.Fatal("unauthorized")
 	}

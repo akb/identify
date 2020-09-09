@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
 )
@@ -40,7 +39,7 @@ func (c *openCommand) Flags(f *flag.FlagSet) {
 }
 
 func (c openCommand) Command(ctx context.Context) int {
-	i := identify.IdentityFromContext(ctx)
+	i := IdentityFromContext(ctx)
 	if i == nil {
 		fmt.Println("unauthorized")
 		return 1

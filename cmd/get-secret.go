@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
 )
@@ -45,7 +44,7 @@ func (c getSecretCommand) Command(ctx context.Context, args []string) int {
 
 	key := args[0]
 
-	i := identify.IdentityFromContext(ctx)
+	i := IdentityFromContext(ctx)
 	if i == nil {
 		fmt.Println("unauthorized")
 		return 1

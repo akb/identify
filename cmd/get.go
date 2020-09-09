@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	"github.com/akb/go-cli"
-	"github.com/akb/identify"
 )
 
 type getCommand struct{}
@@ -42,6 +41,6 @@ func (c getCommand) Command(ctx context.Context, args []string) int {
 
 func (c getCommand) Subcommands() cli.CLI {
 	return cli.CLI{
-		"secret": identify.RequiresUserAuth(&getSecretCommand{}),
+		"secret": RequiresUserAuth(&getSecretCommand{}),
 	}
 }

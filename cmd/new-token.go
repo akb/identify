@@ -23,7 +23,6 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/akb/identify"
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/token"
 )
@@ -80,7 +79,7 @@ func (c *newTokenCommand) Command(ctx context.Context, args []string) int {
 	}
 	defer tokenStore.Close()
 
-	identity := identify.IdentityFromContext(ctx)
+	identity := IdentityFromContext(ctx)
 	if identity == nil {
 		fmt.Println("unauthorized")
 		return 1
@@ -92,7 +91,7 @@ func (c *newTokenCommand) Command(ctx context.Context, args []string) int {
 		return 1
 	}
 
-	creds := identify.UnparsedTokenCredentials{access, refresh}
+	creds := UnparsedTokenCredentials{access, refresh}
 	credsJSON, err := json.MarshalIndent(creds, "", "  ")
 	if err != nil {
 		fmt.Println(err.Error())
