@@ -39,10 +39,7 @@ func init() {
 
 	client = &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: false,
-				RootCAs:            rootCAs,
-			},
+			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
 		},
 	}
 }
