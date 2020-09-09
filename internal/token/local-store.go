@@ -98,14 +98,14 @@ func (s *localStore) New(identity identity.PrivateIdentity) (string, string, err
 	refreshID := refreshUUID.String()
 
 	atExpiry := time.Now().Add(accessMaxAge).Unix()
-	at := jwt.NewWithClaims(*SigningMethodNaCl, jwt.MapClaims{
+	at := jwt.NewWithClaims(*SigningMethodEd25519, jwt.MapClaims{
 		"exp":      atExpiry,
 		"jti":      accessID,
 		"identity": id,
 	})
 
 	rtExpiry := time.Now().Add(refreshMaxAge).Unix()
-	rt := jwt.NewWithClaims(*SigningMethodNaCl, jwt.MapClaims{
+	rt := jwt.NewWithClaims(*SigningMethodEd25519, jwt.MapClaims{
 		"exp":      rtExpiry,
 		"jti":      refreshID,
 		"identity": id,

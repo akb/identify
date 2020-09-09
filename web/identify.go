@@ -18,7 +18,6 @@
 package web
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
@@ -54,6 +53,11 @@ func (h *handler) showPassphraseChallenge(w http.ResponseWriter, r *http.Request
 	}
 }
 
+type NewTokenPage struct {
+	*Page
+	Token string
+}
+
 func (h *handler) createNewToken(w http.ResponseWriter, r *http.Request) {
 	id := r.PostFormValue("id")
 	passphrase := r.PostFormValue("passphrase")
@@ -79,15 +83,32 @@ func (h *handler) createNewToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("new token created for user: %s\n", id)
+	log.Printf("new token created for user: %s\n", id)
 
-	response, err := json.Marshal(NewTokenResponse{token})
-	if err != nil {
-		log.Printf("error while marshaling json response: %s\n", err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	// TODO: this, if json is requested
+	//response, err := json.Marshal(NewTokenResponse{token})
+	//if err != nil {
+	//	log.Printf("error while marshaling json response: %s\n", err.Error())
+	//	http.Error(w, err.Error(), http.StatusInternalServerError)
+	//	return
+	//}
+
+	//w.Header().Set("Content-Type", "application/json")
+	//w.Write(response)
+
+	page := &NewTokenPage{
+		Page: &Page{
+			Encoding:     "utf-8",
+			LanguageCode: "en",
+			Title:        "identify",
+			CSRFToken:    nosurf.Token(r),
+		},
+		Token: token,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
+	log.Print("rendering new identity notification")
+	if err := h.ExecuteTemplate(w, "new-token", page); err != nil {
+		log.Printf("error while rendering new token page: %s\n", err.Error())
+		http.Error(w, err.Error(), 500)
+	}
 }

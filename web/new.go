@@ -105,7 +105,7 @@ func (h *handler) createNewIdentity(w http.ResponseWriter, r *http.Request) {
 
 	log.Print("rendering new identity notification")
 	if err := h.ExecuteTemplate(w, "new-identity", page); err != nil {
-		log.Printf("error while rendering new identity form: %s\n", err.Error())
+		log.Printf("error while rendering new identity page: %s\n", err.Error())
 		http.Error(w, err.Error(), 500)
 	}
 }

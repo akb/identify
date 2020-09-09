@@ -30,7 +30,7 @@ type Credentials struct {
 
 func Parse(unparsed string) (*jwt.Token, error) {
 	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*signingMethodNaCl); !ok {
+		if _, ok := token.Method.(*signingMethodEd25519); !ok {
 			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
 		}
 		return []byte{}, nil

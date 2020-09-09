@@ -21,60 +21,57 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"fmt"
-
-	"golang.org/x/crypto/nacl/sign"
+	"log"
 )
 
 var (
-	ErrorInvalidPublicKey   = fmt.Errorf("key is not a NaCl public key")
-	ErrorInvalidPrivateKey  = fmt.Errorf("key is not a NaCl private key")
-	ErrorUnauthenticMessage = fmt.Errorf("message is unauthentic")
+	ErrorInvalidPublicKey   = fmt.Errorf("key is not an Ed25519	public key")
+	ErrorInvalidPrivateKey  = fmt.Errorf("key is not an Ed25519 private key")
+	ErrorUnauthenticMessage = fmt.Errorf("message is inauthentic")
 )
 
-var SigningMethodNaCl *signingMethodNaCl
+var (
+	EncodeToString = base64.StdEncoding.EncodeToString
+	DecodeString   = base64.StdEncoding.DecodeString
+)
+
+var SigningMethodEd25519 *signingMethodEd25519
 
 func init() {
-	SigningMethodNaCl = &signingMethodNaCl{}
+	SigningMethodEd25519 = &signingMethodEd25519{}
 }
 
-type signingMethodNaCl struct{}
+type signingMethodEd25519 struct{}
 
-func (signingMethodNaCl) Verify(message, signature string, key interface{}) error {
+func (signingMethodEd25519) Verify(message, signature string, key interface{}) error {
 	publicKey, ok := key.(*ed25519.PublicKey)
 	if !ok {
+		log.Println("public key type assertion failed")
 		return ErrorInvalidPublicKey
 	}
 
-	publicKeyBytes, ok := (interface{}(*publicKey)).([]byte)
-	if !ok {
-		return ErrorInvalidPublicKey
+	signatureBytes, err := DecodeString(signature)
+	if err != nil {
+		log.Println("unable to base64 decode signature")
+		return err
 	}
-	var publicKeyByteArray [32]byte
-	copy(publicKeyByteArray[:], publicKeyBytes[:32])
-	if _, ok = sign.Open(nil, []byte(message), &publicKeyByteArray); !ok {
+
+	if !ed25519.Verify(*publicKey, []byte(message), signatureBytes) {
 		return ErrorUnauthenticMessage
 	}
-
 	return nil
 }
 
-func (signingMethodNaCl) Sign(message string, key interface{}) (string, error) {
+func (signingMethodEd25519) Sign(message string, key interface{}) (string, error) {
 	privateKey, ok := key.(*ed25519.PrivateKey)
 	if !ok {
+		log.Println("private key type assertion failed")
 		return "", ErrorInvalidPrivateKey
 	}
 
-	privateKeyBytes, ok := (interface{}(*privateKey)).([]byte)
-	if !ok {
-		return "", ErrorInvalidPrivateKey
-	}
-	var privateKeyByteArray [64]byte
-	copy(privateKeyByteArray[:], privateKeyBytes[:64])
-
-	signature := sign.Sign(nil, []byte(message), &privateKeyByteArray)
-	return base64.RawStdEncoding.EncodeToString(signature), nil
+	return EncodeToString(ed25519.Sign(*privateKey, []byte(message))), nil
 }
 
-func (signingMethodNaCl) Alg() string {
-	return "NaCl"
+func (signingMethodEd25519) Alg() string {
+	return "Ed25519"
 }
