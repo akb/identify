@@ -34,19 +34,13 @@ type NewIdentityResponse struct {
 	ID string `json:"id"`
 }
 
-func (h *handler) new(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		h.showNewIdentityForm(w, r)
-	} else if r.Method == http.MethodPost {
-		h.createNewIdentity(w, r)
-	} else {
-		w.Header().Set("Allow", "GET, POST")
-		http.Error(w, "Only GET and POST requests are allowed for this endpoint.",
+func (h *handler) identitiesNew(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		http.Error(w, "Only GET requests are allowed for this endpoint.",
 			http.StatusMethodNotAllowed)
 	}
-}
 
-func (h *handler) showNewIdentityForm(w http.ResponseWriter, r *http.Request) {
 	page := &Page{
 		Encoding:     "utf-8",
 		LanguageCode: "en",
@@ -66,7 +60,13 @@ type NewIdentityPage struct {
 	ID string
 }
 
-func (h *handler) createNewIdentity(w http.ResponseWriter, r *http.Request) {
+func (h *handler) identities(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "GET")
+		http.Error(w, "Only GET requests are allowed for this endpoint.",
+			http.StatusMethodNotAllowed)
+	}
+
 	log.Print("creating new identity...")
 	passphrase, err := extractPassphrase(w, r)
 	if err != nil {

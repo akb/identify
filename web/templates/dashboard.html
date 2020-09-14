@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */ -}}
 
-{{define "new-identity-form"}}
+{{define "dashboard"}}
 <!DOCTYPE html>
 <html lang="{{.LanguageCode}}">
   <head>
@@ -25,19 +25,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <title>{{.Title}}</title>
   </head>
   <body>
-    <div id="new-identity-form">
-      <form method="POST" action="/identities">
-        <div class="hidden-field">
-          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        </div>
-        <div class="field">
-          <label for="passphrase">Passphrase</label>
-          <input id="passphrase" name="passphrase" type="password">
-        </div>
-        <div class="field">
-          <button type="submit">Submit</button>
-        </div>
-      </form>
+    <h1>Your Identity</h1>
+    <div data-testid="dashboard">
+      <h2>Current Access Token</h2>
+      <code><pre>{{.AccessToken}}</pre></code>
     </div>
   </body>
 </html>

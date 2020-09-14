@@ -43,7 +43,7 @@ type PrivateIdentity interface {
 	PublicIdentity
 
 	ECDSAPrivateKey() *ecdsa.PrivateKey
-	ED25519PrivateKey() *ed25519.PrivateKey
+	Ed25519PrivateKey() ed25519.PrivateKey
 	SealPrivateKey() [32]byte
 
 	OpenMessage(PublicIdentity, []byte) (string, error)
@@ -54,7 +54,7 @@ type PrivateIdentity interface {
 
 type jsonPrivateIdentity struct {
 	ECDSAPrivateKey   string `json:"ecdsa-private-key"`
-	ED25519PrivateKey string `json:"ed25519-private-key"`
+	Ed25519PrivateKey string `json:"ed25519-private-key"`
 	SealPrivateKey    string `json:"seal-private-key"`
 }
 
@@ -70,8 +70,8 @@ func (i privateIdentity) ECDSAPublicKey() *ecdsa.PublicKey {
 	return i.public.ECDSAPublicKey()
 }
 
-func (i privateIdentity) ED25519PublicKey() *ed25519.PublicKey {
-	return i.public.ED25519PublicKey()
+func (i privateIdentity) Ed25519PublicKey() ed25519.PublicKey {
+	return i.public.Ed25519PublicKey()
 }
 
 func (i privateIdentity) SealPublicKey() [32]byte {
@@ -86,8 +86,8 @@ func (i privateIdentity) Authenticate(passphrase string) (PrivateIdentity, error
 	return i, nil
 }
 
-func (i privateIdentity) ED25519PrivateKey() *ed25519.PrivateKey {
-	return i.ed25519PrivateKey
+func (i privateIdentity) Ed25519PrivateKey() ed25519.PrivateKey {
+	return *i.ed25519PrivateKey
 }
 
 func (i privateIdentity) ECDSAPrivateKey() *ecdsa.PrivateKey {
@@ -144,7 +144,7 @@ func (i privateIdentity) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(jsonPrivateIdentity{
 		ECDSAPrivateKey:   EncodeToString(marshaledECDSAPrivateKey),
-		ED25519PrivateKey: EncodeToString([]byte(*i.ed25519PrivateKey)),
+		Ed25519PrivateKey: EncodeToString([]byte(*i.ed25519PrivateKey)),
 		SealPrivateKey:    EncodeToString(i.sealPrivateKey[:]),
 	})
 }
@@ -169,11 +169,11 @@ func (i *privateIdentity) UnmarshalJSON(marshaled []byte) error {
 	}
 	i.ecdsaPrivateKey = ecdsaPrivateKey
 
-	decodedED25519PrivateKey, err := DecodeString(unmarshaled.ED25519PrivateKey)
+	decodedEd25519PrivateKey, err := DecodeString(unmarshaled.Ed25519PrivateKey)
 	if err != nil {
 		return err
 	}
-	ed25519PrivateKey := ed25519.PrivateKey(decodedED25519PrivateKey)
+	ed25519PrivateKey := ed25519.PrivateKey(decodedEd25519PrivateKey)
 	i.ed25519PrivateKey = &ed25519PrivateKey
 
 	sealPrivateKey, err := DecodeString(unmarshaled.SealPrivateKey)

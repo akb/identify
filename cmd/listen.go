@@ -76,9 +76,15 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 	}
 	defer tokenStore.Close()
 
+	identity := IdentityFromContext(ctx)
+	if identity == nil {
+		log.Fatal("Unauthorized")
+	}
+
 	server, err := web.NewServer(&web.Config{
 		ServerName:    realm,
 		Address:       address,
+		Identity:      identity,
 		IdentityStore: store,
 		TokenStore:    tokenStore,
 	})

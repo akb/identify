@@ -22,12 +22,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 var (
 	ErrorInvalidPublicKey   = fmt.Errorf("key is not an Ed25519	public key")
 	ErrorInvalidPrivateKey  = fmt.Errorf("key is not an Ed25519 private key")
-	ErrorUnauthenticMessage = fmt.Errorf("message is inauthentic")
+	ErrorInauthenticMessage = fmt.Errorf("message is inauthentic")
 )
 
 var (
@@ -39,12 +41,15 @@ var SigningMethodEd25519 *signingMethodEd25519
 
 func init() {
 	SigningMethodEd25519 = &signingMethodEd25519{}
+	jwt.RegisterSigningMethod(SigningMethodEd25519.Alg(), func() jwt.SigningMethod {
+		return SigningMethodEd25519
+	})
 }
 
 type signingMethodEd25519 struct{}
 
 func (signingMethodEd25519) Verify(message, signature string, key interface{}) error {
-	publicKey, ok := key.(*ed25519.PublicKey)
+	publicKey, ok := key.(ed25519.PublicKey)
 	if !ok {
 		log.Println("public key type assertion failed")
 		return ErrorInvalidPublicKey
@@ -56,20 +61,20 @@ func (signingMethodEd25519) Verify(message, signature string, key interface{}) e
 		return err
 	}
 
-	if !ed25519.Verify(*publicKey, []byte(message), signatureBytes) {
-		return ErrorUnauthenticMessage
+	if !ed25519.Verify(publicKey, []byte(message), signatureBytes) {
+		return ErrorInauthenticMessage
 	}
 	return nil
 }
 
 func (signingMethodEd25519) Sign(message string, key interface{}) (string, error) {
-	privateKey, ok := key.(*ed25519.PrivateKey)
+	privateKey, ok := key.(ed25519.PrivateKey)
 	if !ok {
 		log.Println("private key type assertion failed")
 		return "", ErrorInvalidPrivateKey
 	}
 
-	return EncodeToString(ed25519.Sign(*privateKey, []byte(message))), nil
+	return EncodeToString(ed25519.Sign(privateKey, []byte(message))), nil
 }
 
 func (signingMethodEd25519) Alg() string {

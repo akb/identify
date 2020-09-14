@@ -96,7 +96,7 @@ func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
 	}
 
 	var identity publicIdentity
-	if err := s.db.View(func(tx *bolt.Tx) error {
+	err = s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(identityBucketKey)
 		if b == nil {
 			return fmt.Errorf("identity bucket doesn't exist")
@@ -109,7 +109,8 @@ func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
 		log.Printf("retrieved identity: %s\n", id)
 
 		return json.Unmarshal(unparsed, &identity)
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 

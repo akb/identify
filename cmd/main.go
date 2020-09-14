@@ -47,7 +47,7 @@ func (identifyCommand) Subcommands() cli.CLI {
 		"new":    &newCommand{},
 		"get":    &getCommand{},
 		"delete": &deleteCommand{},
-		"listen": &listenCommand{},
+		"listen": RequiresUserAuth(&listenCommand{}),
 	}
 }
 

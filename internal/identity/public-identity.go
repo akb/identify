@@ -36,7 +36,7 @@ import (
 
 type PublicIdentity interface {
 	ECDSAPublicKey() *ecdsa.PublicKey
-	ED25519PublicKey() *ed25519.PublicKey
+	Ed25519PublicKey() ed25519.PublicKey
 	SealPublicKey() [32]byte
 
 	String() string
@@ -56,7 +56,7 @@ type publicIdentity struct {
 type jsonPublicIdentity struct {
 	ID               string `json:"id"`
 	ECDSAPublicKey   string `json:"ecdsa-public-key"`
-	ED25519PublicKey string `json:"ed25519-public-key"`
+	Ed25519PublicKey string `json:"ed25519-public-key"`
 	SealPublicKey    string `json:"seal-public-key"`
 	Private          string `json:"private"`
 }
@@ -126,8 +126,8 @@ func (i publicIdentity) SealPublicKey() [32]byte {
 	return *i.sealPublicKey
 }
 
-func (i publicIdentity) ED25519PublicKey() *ed25519.PublicKey {
-	return i.ed25519PublicKey
+func (i publicIdentity) Ed25519PublicKey() ed25519.PublicKey {
+	return *i.ed25519PublicKey
 }
 
 func (i publicIdentity) ECDSAPublicKey() *ecdsa.PublicKey {
@@ -164,7 +164,7 @@ func (i publicIdentity) MarshalJSON() ([]byte, error) {
 		ID: i.id.String(),
 
 		ECDSAPublicKey:   EncodeToString(marshaledECDSAPublicKey),
-		ED25519PublicKey: EncodeToString([]byte(*i.ed25519PublicKey)),
+		Ed25519PublicKey: EncodeToString([]byte(*i.ed25519PublicKey)),
 		SealPublicKey:    EncodeToString(i.sealPublicKey[:]),
 
 		Private: EncodeToString(i.private),
@@ -198,11 +198,11 @@ func (i *publicIdentity) UnmarshalJSON(marshaled []byte) error {
 	}
 	i.ecdsaPublicKey = ecdsaPublicKey
 
-	decodedED25519PublicKey, err := DecodeString(unmarshaled.ED25519PublicKey)
+	decodedEd25519PublicKey, err := DecodeString(unmarshaled.Ed25519PublicKey)
 	if err != nil {
 		return err
 	}
-	ed25519PublicKey := ed25519.PublicKey(decodedED25519PublicKey)
+	ed25519PublicKey := ed25519.PublicKey(decodedEd25519PublicKey)
 	i.ed25519PublicKey = &ed25519PublicKey
 
 	sealPublicKey, err := DecodeString(unmarshaled.SealPublicKey)

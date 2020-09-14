@@ -37,6 +37,8 @@ type Config struct {
 	ServerName string
 	Address    string
 
+	Identity identity.PrivateIdentity
+
 	IdentityStore identity.Store
 	TokenStore    token.Store
 }
@@ -47,9 +49,19 @@ func NewServer(c *Config) (*http.Server, error) {
 		return nil, err
 	}
 
-	h := handler{http.NewServeMux(), template, c.IdentityStore, c.TokenStore}
-	h.Handle("/", http.HandlerFunc(h.identify))
-	h.Handle("/new", http.HandlerFunc(h.new))
+	h := handler{
+		ServeMux:      http.NewServeMux(),
+		Template:      template,
+		identity:      c.Identity,
+		IdentityStore: c.IdentityStore,
+		TokenStore:    c.TokenStore,
+	}
+
+	h.Handle("/", RequireTokenAuth(c.Identity, http.HandlerFunc(h.dashboard)))
+	h.Handle("/tokens", http.HandlerFunc(h.tokens))
+	h.Handle("/tokens/new", http.HandlerFunc(h.tokensNew))
+	h.Handle("/identities", http.HandlerFunc(h.identities))
+	h.Handle("/identities/new", http.HandlerFunc(h.identitiesNew))
 
 	// TODO: make this debug-only
 	csrfHandler := nosurf.New(h)
@@ -79,6 +91,8 @@ type Page struct {
 type handler struct {
 	*http.ServeMux
 	*template.Template
+
+	identity identity.PrivateIdentity
 
 	IdentityStore identity.Store
 	TokenStore    token.Store

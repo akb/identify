@@ -39,47 +39,6 @@ var client *http.Client
 
 const passphrase = "this-will-do-for-now"
 
-func fetch(location string) (*goquery.Document, error) {
-	response, err := client.Get(location)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("expected 200 status code, received %d", response.StatusCode)
-	}
-
-	return goquery.NewDocumentFromReader(response.Body)
-}
-
-func submit(location string, values url.Values) (*goquery.Document, error) {
-	request, err := http.NewRequest(
-		http.MethodPost, location,
-		strings.NewReader(values.Encode()),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	response, err := client.Do(request)
-	defer response.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-	if response.StatusCode != 200 {
-		msg := fmt.Sprintf("expected 200 status code, received %d\n", response.StatusCode)
-		body, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			return nil, err
-		}
-		return nil, fmt.Errorf("%s%s", msg, body)
-	}
-
-	return goquery.NewDocumentFromReader(response.Body)
-}
-
 func init() {
 	rootCAs, _ := x509.SystemCertPool()
 	if rootCAs == nil {
@@ -118,7 +77,7 @@ func TestCreateIdentity(t *testing.T) {
 
 	// get and test new-identity form
 	{
-		document, err := fetch("https://localhost:8443/new")
+		document, err := fetch("https://localhost:8443/identities/new")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -135,26 +94,26 @@ func TestCreateIdentity(t *testing.T) {
 
 		formElement := document.Find("form")
 		if formElement.Length() != 1 {
-			t.Fatal("expected GET /new to respond with a form")
+			t.Fatal("expected GET /identities/new to respond with a form")
 		}
 		action, _ := formElement.Attr("action")
 		method, _ := formElement.Attr("method")
 		if method != "POST" {
-			t.Fatal("expected GET /new to respond with a form with a method of POST")
+			t.Fatal("expected GET /identities/new to respond with a form with a method of POST")
 		}
 		if action != "/new" {
-			t.Fatal("expected GET /new to respond with a form with an action of /new")
+			t.Fatal("expected GET /identities/new to respond with a form with an action of /identities/new")
 		}
 
 		if document.Find("[type=submit]").Length() < 1 {
-			t.Fatal("expected GET /new to respond with a form that can be submitted")
+			t.Fatal("expected GET /identities/new to respond with a form that can be submitted")
 		}
 	}
 
 	// submit new-identity form and test
 	var id string
 	{
-		document, err := submit("https://localhost:8443/new", url.Values{
+		document, err := submit("https://localhost:8443/identities", url.Values{
 			"csrf_token": []string{csrfToken},
 			"passphrase": []string{passphrase},
 		})
@@ -164,7 +123,7 @@ func TestCreateIdentity(t *testing.T) {
 
 		idElement := document.Find("[data-testid=id]")
 		if idElement.Length() == 0 {
-			t.Fatal("expected POST /new to respond with id of new identity")
+			t.Fatal("expected POST /identities/new to respond with id of new identity")
 		}
 		id = idElement.First().Text()
 		_, err = uuid.Parse(id)
@@ -176,7 +135,7 @@ func TestCreateIdentity(t *testing.T) {
 
 	// get new-token form and test
 	{
-		document, err := fetch("https://localhost:8443/")
+		document, err := fetch("https://localhost:8443/tokens/new")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -197,25 +156,25 @@ func TestCreateIdentity(t *testing.T) {
 
 		formElement := document.Find("form")
 		if formElement.Length() != 1 {
-			t.Fatal("expected GET / to respond with a form")
+			t.Fatal("expected GET /tokens/new to respond with a form")
 		}
 		action, _ := formElement.Attr("action")
 		method, _ := formElement.Attr("method")
 		if method != "POST" {
-			t.Fatal("expected GET / to respond with a form with a method of POST")
+			t.Fatal("expected GET /tokens/new to respond with a form with a method of POST")
 		}
 		if action != "/" {
-			t.Fatal("expected GET / to respond with a form with an action of /")
+			t.Fatal("expected GET /tokens/new to respond with a form with an action of /tokens/new")
 		}
 
 		if document.Find("[type=submit]").Length() < 1 {
-			t.Fatal("expected GET / to respond with a form includes a submit button")
+			t.Fatal("expected GET /tokens/new to respond with a form includes a submit button")
 		}
 	}
 
 	// submit new-token form
 	{
-		document, err := submit("https://localhost:8443/", url.Values{
+		document, err := submit("https://localhost:8443/tokens", url.Values{
 			"csrf_token": []string{csrfToken},
 			"id":         []string{id},
 			"passphrase": []string{passphrase},
@@ -226,8 +185,83 @@ func TestCreateIdentity(t *testing.T) {
 
 		tokenElement := document.Find("[data-testid=token]")
 		if tokenElement.Length() == 0 {
-			t.Fatal("expected POST / to respond with a token")
+			t.Fatal("expected POST /tokens/new to respond with a token")
 		}
-		//token = tokenElement.First().Text()
 	}
+
+	// visit dashboard w/ token
+	{
+		document, err := fetch("https://localhost:8443/")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tokenInfoElement := document.Find("[data-testid=dashboard]")
+		if tokenInfoElement.Length() == 0 {
+			t.Fatal("expected authenticated GET / to respond with dashboard")
+		}
+	}
+}
+
+func fetch(location string) (*goquery.Document, error) {
+	response, err := client.Get(location)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("expected 200 status code, received %d", response.StatusCode)
+	}
+
+	return goquery.NewDocumentFromReader(response.Body)
+}
+
+func authenticatedFetch(location, token string) (*goquery.Document, error) {
+	request, err := http.NewRequest(http.MethodGet, location, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(token) > 0 {
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("expected 200 status code, received %d", response.StatusCode)
+	}
+
+	return goquery.NewDocumentFromReader(response.Body)
+}
+
+func submit(location string, values url.Values) (*goquery.Document, error) {
+	request, err := http.NewRequest(
+		http.MethodPost, location,
+		strings.NewReader(values.Encode()),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	response, err := client.Do(request)
+	defer response.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode != 200 {
+		msg := fmt.Sprintf("expected 200 status code, received %d\n", response.StatusCode)
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s%s", msg, body)
+	}
+
+	return goquery.NewDocumentFromReader(response.Body)
 }

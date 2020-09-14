@@ -23,16 +23,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <head>
     <meta charset="{{.Encoding}}">
     <title>{{.Title}}</title>
-    <script defer>
-      const submit = document.querySelector("[type=submit]");
-      submit.onClick = () => {
-        alert("foobar");
-      };
-    </script>
   </head>
   <body>
     <div id="passphrase-challenge">
-      <form method="POST" action="/">
+      <form method="POST" action="/tokens">
         <div class="hidden-field">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         </div>

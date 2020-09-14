@@ -20,27 +20,24 @@ package web
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/justinas/nosurf"
+
+	"github.com/akb/identify/internal/token"
 )
 
 type NewTokenResponse struct {
 	Token string `json:"token"`
 }
 
-func (h *handler) identify(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		h.showPassphraseChallenge(w, r)
-	} else if r.Method == http.MethodPost {
-		h.createNewToken(w, r)
-	} else {
-		w.Header().Set("Allow", "GET, POST")
-		http.Error(w, "Only GET and POST requests are allowed for this endpoint.",
+func (h *handler) tokensNew(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		http.Error(w, "Only GET requests are allowed for this endpoint.",
 			http.StatusMethodNotAllowed)
 	}
-}
 
-func (h *handler) showPassphraseChallenge(w http.ResponseWriter, r *http.Request) {
 	page := &Page{
 		Encoding:     "utf-8",
 		LanguageCode: "en",
@@ -58,7 +55,13 @@ type NewTokenPage struct {
 	Token string
 }
 
-func (h *handler) createNewToken(w http.ResponseWriter, r *http.Request) {
+func (h *handler) tokens(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
+		http.Error(w, "Only POST requests are allowed for this endpoint.",
+			http.StatusMethodNotAllowed)
+	}
+
 	id := r.PostFormValue("id")
 	passphrase := r.PostFormValue("passphrase")
 
@@ -69,14 +72,14 @@ func (h *handler) createNewToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	private, err := identity.Authenticate(passphrase)
+	_, err = identity.Authenticate(passphrase)
 	if err != nil {
 		log.Printf("error while decrypting private identity: %s\n", err.Error())
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	token, _, err := h.TokenStore.New(private)
+	access, err := h.TokenStore.New(h.identity)
 	if err != nil {
 		log.Printf("error while creating token: %s\n", err.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -103,10 +106,21 @@ func (h *handler) createNewToken(w http.ResponseWriter, r *http.Request) {
 			Title:        "identify",
 			CSRFToken:    nosurf.Token(r),
 		},
-		Token: token,
+		Token: access,
 	}
 
-	log.Print("rendering new identity notification")
+	expires := time.Now().Add(token.AccessMaxAge)
+	cookie := http.Cookie{
+		Name:     "Authorization",
+		Value:    access,
+		Path:     "/",
+		Expires:  expires,
+		Secure:   true,
+		HttpOnly: true,
+	}
+	http.SetCookie(w, &cookie)
+
+	log.Print("rendering new token notification")
 	if err := h.ExecuteTemplate(w, "new-token", page); err != nil {
 		log.Printf("error while rendering new token page: %s\n", err.Error())
 		http.Error(w, err.Error(), 500)
