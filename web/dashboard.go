@@ -15,47 +15,43 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package identify
+package web
 
 import (
-	"encoding/json"
-	"io/ioutil"
+	"log"
+	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
 
-	"github.com/akb/identify/internal/token"
+	"github.com/justinas/nosurf"
 )
 
-type UnparsedTokenCredentials struct {
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
+type DashboardPage struct {
+	*Page
+	AccessToken *jwt.Token
 }
 
-func (c UnparsedTokenCredentials) Parse() (*TokenCredentials, error) {
-	access, err := token.Parse(c.Access)
-	if err != nil {
-		return nil, err
+func (h *handler) dashboard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		http.Error(w, "Only GET requests are allowed for this endpoint.",
+			http.StatusMethodNotAllowed)
 	}
 
-	// TODO: Attempt to refresh if access is expired
-	return &TokenCredentials{access, nil}, nil
-}
+	log.Println("serving dashboard.")
 
-type TokenCredentials struct {
-	Access  *jwt.Token
-	Refresh *jwt.Token
-}
-
-func LoadTokenCredentials(credsPath string) (*TokenCredentials, error) {
-	credsJSON, err := ioutil.ReadFile(credsPath)
-	if err != nil {
-		return nil, err
+	page := &DashboardPage{
+		&Page{
+			Encoding:     "utf-8",
+			LanguageCode: "en",
+			Title:        "identify",
+			CSRFToken:    nosurf.Token(r),
+		},
+		TokenFromContext(r.Context()),
 	}
 
-	var creds UnparsedTokenCredentials
-	if err = json.Unmarshal(credsJSON, &creds); err != nil {
-		return nil, err
+	if err := h.ExecuteTemplate(w, "dashboard", page); err != nil {
+		log.Printf("error executing template: \n%s\n", err.Error())
+		http.Error(w, err.Error(), 500)
 	}
-
-	return creds.Parse()
 }

@@ -20,6 +20,7 @@ package identity
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -78,6 +79,7 @@ func (s *localStore) NewIdentity(passphrase string) (PublicIdentity, PrivateIden
 		if err != nil {
 			return err
 		}
+		log.Printf("persisting new identity: %s\n", public.String())
 		return b.Put([]byte(public.String()), marshaled)
 	})
 	if err != nil {
@@ -94,7 +96,7 @@ func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
 	}
 
 	var identity publicIdentity
-	if err := s.db.View(func(tx *bolt.Tx) error {
+	err = s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(identityBucketKey)
 		if b == nil {
 			return fmt.Errorf("identity bucket doesn't exist")
@@ -104,9 +106,11 @@ func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
 		if unparsed == nil {
 			return fmt.Errorf("could not find identity for id %s", id)
 		}
+		log.Printf("retrieved identity: %s\n", id)
 
 		return json.Unmarshal(unparsed, &identity)
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 

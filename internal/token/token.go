@@ -18,25 +18,25 @@
 package token
 
 import (
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
-type Credentials struct {
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
+type ErrorUnknownAlgorithm struct {
+	algorithm interface{}
 }
 
-func Parse(unparsed string) (*jwt.Token, error) {
-	token, err := jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*signingMethodNaCl); !ok {
-			return nil, fmt.Errorf("unexpected signature algorithm: %v", token.Header["alg"])
+func (err ErrorUnknownAlgorithm) Error() string {
+	return fmt.Sprintf("unexpected signature algorithm: %s", err.algorithm)
+}
+
+func Parse(key ed25519.PublicKey, unparsed string) (*jwt.Token, error) {
+	return jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*signingMethodEd25519); !ok {
+			return nil, &ErrorUnknownAlgorithm{token.Header["alg"]}
 		}
-		return []byte{}, nil
+		return key, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return token, nil
 }

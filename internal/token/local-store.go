@@ -20,6 +20,7 @@ package token
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -30,18 +31,15 @@ import (
 )
 
 type Store interface {
-	New(identity.PrivateIdentity) (string, string, error)
-	Parse(string) (*jwt.Token, error)
+	New(identity.PrivateIdentity) (string, error)
 	Delete(string, string) error
 	Close()
 }
 
 var (
-	tokenBucket      = []byte("token")
-	accessTTLBucket  = []byte("access-ttl")
-	refreshTTLBucket = []byte("refresh-ttl")
-	accessMaxAge     = time.Minute * 5
-	refreshMaxAge    = time.Hour * 24 * 7
+	tokenBucket     = []byte("token")
+	accessTTLBucket = []byte("access-ttl")
+	AccessMaxAge    = time.Minute * 5
 )
 
 type localStore struct {
@@ -80,37 +78,24 @@ func (s *localStore) Close() {
 	s.db.Close()
 }
 
-func (s *localStore) New(identity identity.PrivateIdentity) (string, string, error) {
+func (s *localStore) New(identity identity.PrivateIdentity) (string, error) {
 	id := identity.String()
 
 	accessUUID, err := uuid.NewRandom()
 	if err != nil {
-		return "", "", err
-	}
-
-	refreshUUID, err := uuid.NewRandom()
-	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	accessID := accessUUID.String()
-	refreshID := refreshUUID.String()
 
-	atExpiry := time.Now().Add(accessMaxAge).Unix()
-	at := jwt.NewWithClaims(*SigningMethodNaCl, jwt.MapClaims{
+	atExpiry := time.Now().Add(AccessMaxAge).Unix()
+	at := jwt.NewWithClaims(*SigningMethodEd25519, jwt.MapClaims{
 		"exp":      atExpiry,
 		"jti":      accessID,
 		"identity": id,
 	})
 
-	rtExpiry := time.Now().Add(refreshMaxAge).Unix()
-	rt := jwt.NewWithClaims(*SigningMethodNaCl, jwt.MapClaims{
-		"exp":      rtExpiry,
-		"jti":      refreshID,
-		"identity": id,
-	})
-
-	if err := s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Update(func(tx *bolt.Tx) error {
 		ts := time.Now().UTC().Format(time.RFC3339Nano)
 
 		for _, g := range []struct {
@@ -119,9 +104,7 @@ func (s *localStore) New(identity identity.PrivateIdentity) (string, string, err
 			value  string
 		}{
 			{tokenBucket, accessID, id},
-			{tokenBucket, refreshID, id},
 			{accessTTLBucket, ts, accessID},
-			{refreshTTLBucket, ts, refreshID},
 		} {
 			b, err := tx.CreateBucketIfNotExists(g.bucket)
 			if err = b.Put([]byte(g.key), []byte(g.value)); err != nil {
@@ -129,21 +112,12 @@ func (s *localStore) New(identity identity.PrivateIdentity) (string, string, err
 			}
 		}
 		return nil
-	}); err != nil {
-		return "", "", err
-	}
-
-	access, err := at.SignedString(identity.SignPrivateKey())
+	})
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	refresh, err := rt.SignedString(identity.SignPrivateKey())
-	if err != nil {
-		return "", "", err
-	}
-
-	return access, refresh, nil
+	return at.SignedString(identity.Ed25519PrivateKey())
 }
 
 func (s *localStore) Delete(identity, id string) error {
@@ -157,39 +131,37 @@ func (s *localStore) Delete(identity, id string) error {
 }
 
 func (s *localStore) sweep() error {
-	var atk, attk, rtk, rttk [][]byte
+	var atk, attk [][]byte
 	var err error
 
-	atk, attk, err = s.getExpiredTokens(accessTTLBucket, accessMaxAge)
+	log.Println("scanning for expired tokens...")
+	atk, attk, err = s.getExpiredTokens(accessTTLBucket, AccessMaxAge)
 	if err != nil {
 		return err
 	}
 
-	rtk, rttk, err = s.getExpiredTokens(refreshTTLBucket, refreshMaxAge)
-	if err != nil {
-		return err
-	}
-
-	if len(atk) == 0 && len(attk) == 0 && len(rtk) == 0 && len(rttk) == 0 {
+	if len(atk) == 0 && len(attk) == 0 {
 		return nil
 	}
 
+	log.Println("deleting expired tokens...")
 	return s.db.Update(func(tx *bolt.Tx) error {
+		var count int
 		for _, b := range []struct {
 			*bolt.Bucket
 			keys [][]byte
 		}{
 			{tx.Bucket(tokenBucket), atk},
 			{tx.Bucket(accessTTLBucket), attk},
-			{tx.Bucket(tokenBucket), rtk},
-			{tx.Bucket(refreshTTLBucket), rttk},
 		} {
+			count += len(b.keys)
 			for _, key := range b.keys {
 				if err = b.Delete(key); err != nil {
 					return err
 				}
 			}
 		}
+		log.Printf("deleted %d expired tokens.\n", count)
 		return nil
 	})
 }
