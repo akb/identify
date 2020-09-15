@@ -15,32 +15,41 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package auth
+package test
 
 import (
-	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
 
-	"github.com/akb/identify/internal/identity"
+	"github.com/brianvoe/gofakeit/v5"
 )
 
-type contextKey string
+var commandName string
+var dbPath string
 
-const (
-	identityContextKey = contextKey("identity")
-)
-
-type Provider struct {
-	Realm string
-
-	IdentityStore identity.Store
-	//TokenStore    token.Store
+func init() {
+	commandName = os.Getenv("IDENTIFY_COMMAND")
+	if len(commandName) == 0 {
+		commandName = "../bin/identify"
+	}
+	gofakeit.Seed(time.Now().UnixNano())
 }
 
-func IdentityFromContext(ctx context.Context) (identity.PrivateIdentity, error) {
-	v := ctx.Value(identityContextKey)
-	if v == nil {
-		return nil, fmt.Errorf("Identity not found in request context")
+func TestMain(m *testing.M) {
+	dir, err := ioutil.TempDir("", "identify-testing")
+	if err != nil {
+		panic(err)
 	}
-	return v.(identity.PrivateIdentity), nil
+	defer os.RemoveAll(dir)
+
+	dbPath = filepath.Join(dir, "identity.db")
+
+	os.Exit(m.Run())
 }

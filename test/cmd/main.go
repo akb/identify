@@ -38,7 +38,7 @@ var dbPath string
 func init() {
 	commandName = os.Getenv("IDENTIFY_COMMAND")
 	if len(commandName) == 0 {
-		commandName = "../bin/identify"
+		commandName = "../../bin/identify"
 	}
 	gofakeit.Seed(time.Now().UnixNano())
 }
