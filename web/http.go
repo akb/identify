@@ -18,32 +18,26 @@
 package web
 
 import (
-	"crypto/tls"
 	"fmt"
 	"html/template"
-	"log"
 	"mime"
 	"net/http"
 	"strings"
 
 	"github.com/justinas/nosurf"
-	"github.com/unrolled/logger"
+	//"github.com/unrolled/logger"
 
 	"github.com/akb/identify/internal/identity"
 	"github.com/akb/identify/internal/token"
 )
 
 type Config struct {
-	ServerName string
-	Address    string
-
-	Identity identity.PrivateIdentity
-
+	Identity      identity.PrivateIdentity
 	IdentityStore identity.Store
 	TokenStore    token.Store
 }
 
-func NewServer(c *Config) (*http.Server, error) {
+func NewHandler(c *Config) (http.Handler, error) {
 	template, err := template.ParseGlob("web/templates/*")
 	if err != nil {
 		return nil, err
@@ -73,12 +67,8 @@ func NewServer(c *Config) (*http.Server, error) {
 		}),
 	)
 
-	log.Printf("created new identify server: %s\n", c.ServerName)
-	return &http.Server{
-		Addr:      c.Address,
-		Handler:   logger.New().Handler(csrfHandler),
-		TLSConfig: &tls.Config{ServerName: c.ServerName},
-	}, nil
+	//return logger.New().Handler(csrfHandler), nil
+	return csrfHandler, nil
 }
 
 type Page struct {

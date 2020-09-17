@@ -19,8 +19,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
@@ -81,15 +83,19 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 		log.Fatal("Unauthorized")
 	}
 
-	server, err := web.NewServer(&web.Config{
-		ServerName:    realm,
-		Address:       address,
+	handler, err := web.NewHandler(&web.Config{
 		Identity:      identity,
 		IdentityStore: store,
 		TokenStore:    tokenStore,
 	})
 	if err != nil {
 		log.Fatal(err.Error())
+	}
+
+	server := &http.Server{
+		Addr:      address,
+		Handler:   handler,
+		TLSConfig: &tls.Config{ServerName: realm},
 	}
 
 	log.Printf("Identity API listening for HTTP requests on %s...\n", address)

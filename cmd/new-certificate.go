@@ -19,18 +19,13 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
 	"log"
-	"math/big"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/akb/identify/cmd/config"
+	"github.com/akb/identify/internal/certificate"
 )
 
 type newCertificateCommand struct{}
@@ -77,53 +72,7 @@ func (c newCertificateCommand) Command(ctx context.Context, args []string) int {
 		}
 	}
 
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"Humanity"},
-		},
-
-		NotBefore: time.Now().Add(-10 * time.Second),
-		NotAfter:  time.Now().AddDate(10, 0, 0),
-
-		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-
-		BasicConstraintsValid: true,
-
-		DNSNames: []string{"localhost"},
-	}
-
-	encodedKey, err := x509.MarshalPKCS8PrivateKey(i.ECDSAPrivateKey())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	keyFile, err := os.Create(certificateKeyPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer keyFile.Close()
-
-	keyBlock := pem.Block{Type: "PRIVATE KEY", Bytes: encodedKey}
-	if err := pem.Encode(keyFile, &keyBlock); err != nil {
-		log.Fatal(err)
-	}
-
-	certificate, err := x509.CreateCertificate(
-		rand.Reader, &template, &template, i.ECDSAPublicKey(), i.ECDSAPrivateKey())
-	if err != nil {
-		log.Fatalf("error while creating certificate: %s\n", err.Error())
-	}
-
-	certFile, err := os.Create(certificatePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer certFile.Close()
-
-	certBlock := pem.Block{Type: "CERTIFICATE", Bytes: certificate}
-	if err := pem.Encode(certFile, &certBlock); err != nil {
+	if err := certificate.Generate(i, certificatePath, certificateKeyPath); err != nil {
 		log.Fatal(err)
 	}
 

@@ -48,7 +48,6 @@ func (h *handler) identitiesNew(w http.ResponseWriter, r *http.Request) {
 		CSRFToken:    nosurf.Token(r),
 	}
 
-	log.Print("rendering new identity form")
 	if err := h.ExecuteTemplate(w, "new-identity-form", page); err != nil {
 		log.Printf("error while rendering new identity form: %s\n", err.Error())
 		http.Error(w, err.Error(), 500)
@@ -67,7 +66,6 @@ func (h *handler) identities(w http.ResponseWriter, r *http.Request) {
 			http.StatusMethodNotAllowed)
 	}
 
-	log.Print("creating new identity...")
 	passphrase, err := extractPassphrase(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -103,7 +101,6 @@ func (h *handler) identities(w http.ResponseWriter, r *http.Request) {
 		ID: public.String(),
 	}
 
-	log.Print("rendering new identity notification")
 	if err := h.ExecuteTemplate(w, "new-identity", page); err != nil {
 		log.Printf("error while rendering new identity page: %s\n", err.Error())
 		http.Error(w, err.Error(), 500)

@@ -18,64 +18,22 @@
 package test
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/uuid"
-
-	"github.com/akb/identify/cmd/config"
 )
 
-var client *http.Client
-
 const passphrase = "this-will-do-for-now"
-
-func init() {
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
-
-	certpath, err := config.GetCertificatePath()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	certs, err := ioutil.ReadFile(certpath)
-	if err != nil {
-		log.Fatalf("Failed to append %q to RootCAs: %v", certpath, err)
-	}
-
-	if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
-		log.Fatal("failed to append certificate to root CAs")
-	}
-
-	jar, err := cookiejar.New(&cookiejar.Options{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	client = &http.Client{
-		Jar: jar,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
-		},
-	}
-}
 
 func TestCreateIdentity(t *testing.T) {
 	var csrfToken string
 
-	// get and test new-identity form
 	{
 		document, err := fetch("https://localhost:8443/identities/new")
 		if err != nil {
@@ -101,8 +59,8 @@ func TestCreateIdentity(t *testing.T) {
 		if method != "POST" {
 			t.Fatal("expected GET /identities/new to respond with a form with a method of POST")
 		}
-		if action != "/new" {
-			t.Fatal("expected GET /identities/new to respond with a form with an action of /identities/new")
+		if action != "/identities" {
+			t.Fatal("expected GET /identities/new to respond with a form with an action of /identities")
 		}
 
 		if document.Find("[type=submit]").Length() < 1 {
@@ -110,7 +68,6 @@ func TestCreateIdentity(t *testing.T) {
 		}
 	}
 
-	// submit new-identity form and test
 	var id string
 	{
 		document, err := submit("https://localhost:8443/identities", url.Values{
@@ -133,7 +90,6 @@ func TestCreateIdentity(t *testing.T) {
 		}
 	}
 
-	// get new-token form and test
 	{
 		document, err := fetch("https://localhost:8443/tokens/new")
 		if err != nil {
@@ -163,8 +119,8 @@ func TestCreateIdentity(t *testing.T) {
 		if method != "POST" {
 			t.Fatal("expected GET /tokens/new to respond with a form with a method of POST")
 		}
-		if action != "/" {
-			t.Fatal("expected GET /tokens/new to respond with a form with an action of /tokens/new")
+		if action != "/tokens" {
+			t.Fatal("expected GET /tokens/new to respond with a form with an action of /tokens")
 		}
 
 		if document.Find("[type=submit]").Length() < 1 {
@@ -172,7 +128,6 @@ func TestCreateIdentity(t *testing.T) {
 		}
 	}
 
-	// submit new-token form
 	{
 		document, err := submit("https://localhost:8443/tokens", url.Values{
 			"csrf_token": []string{csrfToken},
@@ -189,7 +144,6 @@ func TestCreateIdentity(t *testing.T) {
 		}
 	}
 
-	// visit dashboard w/ token
 	{
 		document, err := fetch("https://localhost:8443/")
 		if err != nil {

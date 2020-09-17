@@ -120,7 +120,6 @@ func (h *handler) tokens(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &cookie)
 
-	log.Print("rendering new token notification")
 	if err := h.ExecuteTemplate(w, "new-token", page); err != nil {
 		log.Printf("error while rendering new token page: %s\n", err.Error())
 		http.Error(w, err.Error(), 500)
