@@ -74,7 +74,9 @@ func NewLocalStore(dbPath string) (*localStore, error) {
 
 func (s *localStore) Close() {
 	s.done <- struct{}{}
-	s.sweep() // TODO: handle error
+	if err := s.sweep(); err != nil {
+		log.Println(err)
+	}
 	s.db.Close()
 }
 
@@ -89,7 +91,7 @@ func (s *localStore) New(identity identity.PrivateIdentity) (string, error) {
 	accessID := accessUUID.String()
 
 	atExpiry := time.Now().Add(AccessMaxAge).Unix()
-	at := jwt.NewWithClaims(*SigningMethodEd25519, jwt.MapClaims{
+	at := jwt.NewWithClaims(SigningMethod, jwt.MapClaims{
 		"exp":      atExpiry,
 		"jti":      accessID,
 		"identity": id,
@@ -172,7 +174,11 @@ func (s *localStore) getExpiredTokens(
 	ttlKeys := [][]byte{}
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		c := tx.Bucket(bucket).Cursor()
+		b := tx.Bucket(bucket)
+		if b == nil {
+			return nil
+		}
+		c := b.Cursor()
 		max := []byte(time.Now().UTC().Add(-maxAge).Format(time.RFC3339Nano))
 		for k, v := c.First(); k != nil && bytes.Compare(k, max) <= 0; k, v = c.Next() {
 			keys = append(keys, v)

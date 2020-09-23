@@ -37,18 +37,18 @@ var (
 	DecodeString   = base64.StdEncoding.DecodeString
 )
 
-var SigningMethodEd25519 *signingMethodEd25519
+var SigningMethod *SigningMethodEd25519
 
 func init() {
-	SigningMethodEd25519 = &signingMethodEd25519{}
-	jwt.RegisterSigningMethod(SigningMethodEd25519.Alg(), func() jwt.SigningMethod {
-		return SigningMethodEd25519
+	SigningMethod = &SigningMethodEd25519{}
+	jwt.RegisterSigningMethod(SigningMethod.Alg(), func() jwt.SigningMethod {
+		return SigningMethod
 	})
 }
 
-type signingMethodEd25519 struct{}
+type SigningMethodEd25519 struct{}
 
-func (signingMethodEd25519) Verify(message, signature string, key interface{}) error {
+func (SigningMethodEd25519) Verify(message, signature string, key interface{}) error {
 	publicKey, ok := key.(ed25519.PublicKey)
 	if !ok {
 		log.Println("public key type assertion failed")
@@ -67,7 +67,7 @@ func (signingMethodEd25519) Verify(message, signature string, key interface{}) e
 	return nil
 }
 
-func (signingMethodEd25519) Sign(message string, key interface{}) (string, error) {
+func (SigningMethodEd25519) Sign(message string, key interface{}) (string, error) {
 	privateKey, ok := key.(ed25519.PrivateKey)
 	if !ok {
 		log.Println("private key type assertion failed")
@@ -77,6 +77,6 @@ func (signingMethodEd25519) Sign(message string, key interface{}) (string, error
 	return EncodeToString(ed25519.Sign(privateKey, []byte(message))), nil
 }
 
-func (signingMethodEd25519) Alg() string {
+func (SigningMethodEd25519) Alg() string {
 	return "Ed25519"
 }

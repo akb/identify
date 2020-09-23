@@ -15,28 +15,31 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package token
+package web
 
 import (
-	"crypto/ed25519"
-	"fmt"
+	"testing"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/PuerkitoBio/goquery"
 )
 
-type ErrorUnknownAlgorithm struct {
-	algorithm interface{}
+type Dashboard struct {
+	*goquery.Document
 }
 
-func (err ErrorUnknownAlgorithm) Error() string {
-	return fmt.Sprintf("unexpected signature algorithm: %s", err.algorithm)
+func FetchDashboard(t *testing.T) *Dashboard {
+	tc := NewTestClient(t)
+
+	document, err := tc.Fetch("https://localhost:8443/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &Dashboard{document}
 }
 
-func Parse(key ed25519.PublicKey, unparsed string) (*jwt.Token, error) {
-	return jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(SigningMethodEd25519); !ok {
-			return nil, &ErrorUnknownAlgorithm{token.Header["alg"]}
-		}
-		return key, nil
-	})
+func (d *Dashboard) Test(t *testing.T) {
+	tokenInfoElement := d.Find("[data-testid=dashboard]")
+	if tokenInfoElement.Length() == 0 {
+		t.Fatal("expected authenticated GET / to respond with dashboard")
+	}
 }

@@ -15,20 +15,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package test
+package web
 
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/brianvoe/gofakeit/v5"
 
 	"github.com/akb/identify/internal/certificate"
@@ -37,20 +41,23 @@ import (
 	"github.com/akb/identify/web"
 )
 
-var client *http.Client
-
 func init() {
 	gofakeit.Seed(time.Now().UnixNano())
+	os.Chdir("../..")
 }
 
-func TestMain(m *testing.M) {
-	os.Chdir("../..")
+type testClient struct {
+	*http.Client
+	identity.PrivateIdentity
+}
 
+func NewTestClient(t *testing.T) *testClient {
 	dir, err := ioutil.TempDir("", "identify-testing")
 	if err != nil {
 		log.Printf("An error occurred while creating a temporary directory\n")
 		log.Fatal(err.Error())
 	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
 
 	dbPath := filepath.Join(dir, "identity.db")
 	tokenDBPath := filepath.Join(dir, "token.db")
@@ -60,12 +67,16 @@ func TestMain(m *testing.M) {
 		log.Printf("An error occurred while opening identity database file: %s\n", dbPath)
 		log.Fatal(err.Error())
 	}
+	t.Cleanup(func() { identityStore.Close() })
 
 	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
 		log.Printf("An error occurred while opening token database file: %s\n", tokenDBPath)
 		log.Fatal(err.Error())
 	}
+	t.Cleanup(func() { tokenStore.Close() })
+
+	passphrase := gofakeit.Password(true, true, true, true, true, 24)
 
 	_, private, err := identityStore.NewIdentity(passphrase)
 	if err != nil {
@@ -125,30 +136,67 @@ func TestMain(m *testing.M) {
 		break
 	}
 
+	t.Cleanup(func() {
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+
+		if err = server.Shutdown(ctx); err != nil {
+			log.Fatal(err)
+		}
+	})
+
 	jar, err := cookiejar.New(&cookiejar.Options{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	client = &http.Client{
-		Jar: jar,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{RootCAs: certs},
+	return &testClient{
+		&http.Client{
+			Jar: jar,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{RootCAs: certs},
+			},
 		},
+		private,
+	}
+}
+
+func (tc *testClient) Fetch(location string) (*goquery.Document, error) {
+	response, err := tc.Get(location)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("expected 200 status code, received %d", response.StatusCode)
 	}
 
-	status := m.Run()
+	return goquery.NewDocumentFromReader(response.Body)
+}
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-
-	if err = server.Shutdown(ctx); err != nil {
-		log.Fatal(err)
+func (tc *testClient) Submit(location string, values url.Values) (*goquery.Document, error) {
+	request, err := http.NewRequest(
+		http.MethodPost, location,
+		strings.NewReader(values.Encode()),
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	tokenStore.Close()
-	identityStore.Close()
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	os.RemoveAll(dir)
+	response, err := tc.Do(request)
+	defer response.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode != 200 {
+		msg := fmt.Sprintf("expected 200 status code, received %d\n", response.StatusCode)
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s%s", msg, body)
+	}
 
-	os.Exit(status)
+	return goquery.NewDocumentFromReader(response.Body)
 }
