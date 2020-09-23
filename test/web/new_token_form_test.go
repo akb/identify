@@ -29,12 +29,12 @@ import (
 	"github.com/akb/identify/internal/token"
 )
 
-func TestNewTokenForm(t *testing.T) {
+func TestNewTokenFormWithID(t *testing.T) {
 	tc := NewTestClient(t)
 
 	passphrase := gofakeit.Password(true, true, true, true, true, 24)
 
-	id, err := tc.CreateNewIdentity(passphrase)
+	id, err := tc.CreateNewIdentity("", passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,6 +45,44 @@ func TestNewTokenForm(t *testing.T) {
 	}
 
 	newTokenResult, err := newTokenForm.Submit(id, passphrase)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tokenString, err := newTokenResult.GetToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*token.SigningMethodEd25519); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
+		}
+
+		return tc.Ed25519PublicKey(), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewTokenFormWithAlias(t *testing.T) {
+	tc := NewTestClient(t)
+
+	alias := gofakeit.Username()
+	passphrase := gofakeit.Password(true, true, true, true, true, 24)
+
+	_, err := tc.CreateNewIdentity(alias, passphrase)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newTokenForm, err := tc.FetchNewTokenForm()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newTokenResult, err := newTokenForm.Submit(alias, passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
