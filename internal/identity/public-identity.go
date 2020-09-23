@@ -47,6 +47,7 @@ type PublicIdentity interface {
 
 type publicIdentity struct {
 	id               uuid.UUID
+	aliases          []string
 	ecdsaPublicKey   *ecdsa.PublicKey
 	ed25519PublicKey *ed25519.PublicKey
 	sealPublicKey    *[32]byte
@@ -54,14 +55,15 @@ type publicIdentity struct {
 }
 
 type jsonPublicIdentity struct {
-	ID               string `json:"id"`
-	ECDSAPublicKey   string `json:"ecdsa-public-key"`
-	Ed25519PublicKey string `json:"ed25519-public-key"`
-	SealPublicKey    string `json:"seal-public-key"`
-	Private          string `json:"private"`
+	ID               string   `json:"id"`
+	Aliases          []string `json:"aliases"`
+	ECDSAPublicKey   string   `json:"ecdsa-public-key"`
+	Ed25519PublicKey string   `json:"ed25519-public-key"`
+	SealPublicKey    string   `json:"seal-public-key"`
+	Private          string   `json:"private"`
 }
 
-func NewIdentity(passphrase string) (*publicIdentity, *privateIdentity, error) {
+func NewIdentity(passphrase string, aliases []string) (*publicIdentity, *privateIdentity, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return nil, nil, err
@@ -88,6 +90,7 @@ func NewIdentity(passphrase string) (*publicIdentity, *privateIdentity, error) {
 
 	public := publicIdentity{
 		id:               id,
+		aliases:          aliases,
 		ecdsaPublicKey:   ecdsaPublicKey,
 		ed25519PublicKey: &ed25519PublicKey,
 		sealPublicKey:    sealPublicKey,

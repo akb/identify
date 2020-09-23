@@ -35,21 +35,22 @@ func TestNewIdentityForm(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	alias := gofakeit.Username()
 	passphrase := gofakeit.Password(true, true, true, true, true, 24)
 
-	_, err = newIdentityForm.Submit(passphrase)
+	_, err = newIdentityForm.Submit(alias, passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func (tc *testClient) CreateNewIdentity(passphrase string) (string, error) {
+func (tc *testClient) CreateNewIdentity(alias, passphrase string) (string, error) {
 	form, err := tc.FetchNewIdentityForm()
 	if err != nil {
 		return "", err
 	}
 
-	result, err := form.Submit(passphrase)
+	result, err := form.Submit(alias, passphrase)
 	if err != nil {
 		return "", err
 	}
@@ -83,6 +84,10 @@ func (tc *testClient) FetchNewIdentityForm() (*newIdentityForm, error) {
 		return nil, fmt.Errorf("expected GET /identities/new to respond with a form with an action of /identities")
 	}
 
+	if document.Find("[name=alias]").Length() != 1 {
+		return nil, fmt.Errorf("expected /identities/new to contain a field named 'alias'")
+	}
+
 	if document.Find("[name=passphrase]").Length() != 1 {
 		return nil, fmt.Errorf("expected /identities/new to contain a field named 'passphrase'")
 	}
@@ -108,16 +113,22 @@ func (f *newIdentityForm) GetCSRFToken() (string, error) {
 	return csrfToken, nil
 }
 
-func (f *newIdentityForm) Submit(passphrase string) (*NewIdentityResult, error) {
+func (f *newIdentityForm) Submit(alias, passphrase string) (*NewIdentityResult, error) {
 	csrfToken, err := f.GetCSRFToken()
 	if err != nil {
 		return nil, err
 	}
 
-	document, err := f.tc.Submit("https://localhost:8443/identities", url.Values{
+	values := url.Values{
 		"csrf_token": []string{csrfToken},
 		"passphrase": []string{passphrase},
-	})
+	}
+
+	if len(alias) > 0 {
+		values["alias"] = []string{alias}
+	}
+
+	document, err := f.tc.Submit("https://localhost:8443/identities", values)
 	if err != nil {
 		return nil, err
 	}

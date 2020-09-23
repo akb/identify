@@ -78,7 +78,7 @@ func NewTestClient(t *testing.T) *testClient {
 
 	passphrase := gofakeit.Password(true, true, true, true, true, 24)
 
-	_, private, err := identityStore.NewIdentity(passphrase)
+	_, private, err := identityStore.NewIdentity(passphrase, []string{"self"})
 	if err != nil {
 		log.Printf("An error occurred while creating server identity:\n")
 		log.Fatal(err.Error())

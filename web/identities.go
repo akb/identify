@@ -18,15 +18,20 @@
 package web
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/justinas/nosurf"
 )
 
+type NewIdentityPage struct {
+	*Page
+	ID string
+}
+
 type NewIdentityRequest struct {
+	Alias      string `json:"alias"`
 	Passphrase string `json:"passphrase"`
 }
 
@@ -54,42 +59,33 @@ func (h *handler) identitiesNew(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type NewIdentityPage struct {
-	*Page
-	ID string
-}
-
 func (h *handler) identities(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", "GET")
-		http.Error(w, "Only GET requests are allowed for this endpoint.",
+		w.Header().Set("Allow", "POST")
+		http.Error(w, "Only POST requests are allowed for this endpoint.",
 			http.StatusMethodNotAllowed)
 	}
 
-	passphrase, err := extractPassphrase(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if !hasContentType(r, "application/x-www-form-urlencoded") &&
+		!hasContentType(r, "multipart/form-data") {
+		http.Error(w, "unable to parse request body", http.StatusBadRequest)
 		return
 	}
 
-	public, _, err := h.IdentityStore.NewIdentity(passphrase)
+	alias := r.PostFormValue("alias")
+	var aliases []string
+	for _, a := range strings.Split(alias, ",") {
+		aliases = append(aliases, strings.TrimSpace(a))
+	}
+
+	passphrase := r.PostFormValue("passphrase")
+
+	public, _, err := h.IdentityStore.NewIdentity(passphrase, aliases)
 	if err != nil {
 		log.Printf("error creating new identity: %s\n", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	log.Printf("new identity created: %s\n", public.String())
-
-	// TODO: this, if JSON is requested
-	// response, err := json.Marshal(NewIdentityResponse{public.String()})
-	// if err != nil {
-	// 	log.Printf("error marshaling json response: %s\n", err.Error())
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	// w.Header().Set("Content-Type", "application/json")
-	// w.Write(response)
 
 	page := &NewIdentityPage{
 		Page: &Page{
@@ -104,23 +100,5 @@ func (h *handler) identities(w http.ResponseWriter, r *http.Request) {
 	if err := h.ExecuteTemplate(w, "new-identity", page); err != nil {
 		log.Printf("error while rendering new identity page: %s\n", err.Error())
 		http.Error(w, err.Error(), 500)
-	}
-}
-
-func extractPassphrase(w http.ResponseWriter, r *http.Request) (string, error) {
-	if hasContentType(r, "application/x-www-form-urlencoded") ||
-		hasContentType(r, "multipart/form-data") {
-		return r.PostFormValue("passphrase"), nil
-
-	} else if hasContentType(r, "application/json") {
-		var parsed NewIdentityRequest
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&parsed); err != nil {
-			return "", err
-		}
-		return parsed.Passphrase, nil
-
-	} else {
-		return "", fmt.Errorf("Unable to parse request body.")
 	}
 }
