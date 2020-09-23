@@ -30,7 +30,7 @@ import (
 )
 
 type Store interface {
-	NewIdentity(string) (PublicIdentity, PrivateIdentity, error)
+	NewIdentity(string, []string) (PublicIdentity, PrivateIdentity, error)
 	GetIdentity(string) (PublicIdentity, error)
 	PutSecret(PublicIdentity, string, string) error
 	GetSecret(PrivateIdentity, string) (string, error)
@@ -38,6 +38,7 @@ type Store interface {
 }
 
 var (
+	aliasBucketKey    = []byte("alias")
 	identityBucketKey = []byte("identity")
 	secretBucketKey   = []byte("secret")
 )
@@ -63,8 +64,8 @@ func (s *localStore) Close() {
 	s.db.Close()
 }
 
-func (s *localStore) NewIdentity(passphrase string) (PublicIdentity, PrivateIdentity, error) {
-	public, private, err := NewIdentity(passphrase)
+func (s *localStore) NewIdentity(passphrase string, aliases []string) (PublicIdentity, PrivateIdentity, error) {
+	public, private, err := NewIdentity(passphrase, aliases)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -79,8 +80,34 @@ func (s *localStore) NewIdentity(passphrase string) (PublicIdentity, PrivateIden
 		if err != nil {
 			return err
 		}
-		log.Printf("persisting new identity: %s\n", public.String())
-		return b.Put([]byte(public.String()), marshaled)
+
+		err = b.Put([]byte(public.String()), marshaled)
+		if err != nil {
+			return err
+		}
+
+		ab, err := tx.CreateBucketIfNotExists(aliasBucketKey)
+		if err != nil {
+			return err
+		}
+
+		var msg string
+		if len(aliases) == 0 || len(aliases[0]) == 0 {
+			msg = fmt.Sprintf("created new identity: %s\n", public.String())
+		} else {
+			msg = fmt.Sprintf("created new identity: %s, a.k.a. ", public.String())
+			for i, a := range aliases {
+				if i+1 == len(aliases) {
+					msg = fmt.Sprintf("%s%s", msg, a)
+				} else {
+					msg = fmt.Sprintf("%s%s, ", msg, a)
+				}
+				err = ab.Put([]byte(a), []byte(public.String()))
+			}
+		}
+
+		log.Print(msg)
+		return nil
 	})
 	if err != nil {
 		return nil, nil, err
@@ -90,13 +117,21 @@ func (s *localStore) NewIdentity(passphrase string) (PublicIdentity, PrivateIden
 }
 
 func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
-	_, err := uuid.Parse(id)
-	if err != nil {
-		return nil, err
-	}
-
 	var identity publicIdentity
-	err = s.db.View(func(tx *bolt.Tx) error {
+	err := s.db.View(func(tx *bolt.Tx) error {
+		_, err := uuid.Parse(id)
+		if err != nil {
+			ab := tx.Bucket(aliasBucketKey)
+			if ab == nil {
+				return fmt.Errorf("alias bucket doesn't exist")
+			}
+			aliasID := ab.Get([]byte(id))
+			if aliasID == nil {
+				return fmt.Errorf("unknown alias")
+			}
+			id = string(aliasID)
+		}
+
 		b := tx.Bucket(identityBucketKey)
 		if b == nil {
 			return fmt.Errorf("identity bucket doesn't exist")
