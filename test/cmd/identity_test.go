@@ -18,6 +18,7 @@
 package test
 
 import (
+	"log"
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v5"
@@ -25,6 +26,9 @@ import (
 )
 
 func TestNewIdentityCommand(t *testing.T) {
+	alias := gofakeit.Username()
+	passphrase := gofakeit.Password(true, true, true, true, true, 33)
+
 	newIdentity, err := NewCommandTest(
 		[]string{"new", "identity"},
 		map[string]string{"IDENTIFY_DB_PATH": dbPath},
@@ -40,7 +44,17 @@ func TestNewIdentityCommand(t *testing.T) {
 	}
 
 	newIdentity.Interact(func() {
-		passphrase := gofakeit.Password(true, true, true, true, true, 33)
+		_, err = newIdentity.Expectf("Alias: ")
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+
+		_, err = newIdentity.SendLine(alias)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
 
 		err := newIdentity.Authenticate(passphrase)
 		if err != nil {
@@ -64,7 +78,9 @@ func TestNewIdentityCommand(t *testing.T) {
 	newIdentity.Wait()
 }
 
-func GenerateNewIdentity(passphrase string) (id string, err error) {
+func GenerateNewIdentity(passphrase string) (id, alias string, err error) {
+	alias = gofakeit.Username()
+
 	newIdentity, err := NewCommandTest(
 		[]string{"new", "identity"},
 		map[string]string{"IDENTIFY_DB_PATH": dbPath},
@@ -80,14 +96,28 @@ func GenerateNewIdentity(passphrase string) (id string, err error) {
 	}
 
 	newIdentity.Interact(func() {
+		_, err = newIdentity.Expectf("Alias: ")
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+
+		_, err = newIdentity.SendLine(alias)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+
 		err = newIdentity.Authenticate(passphrase)
 		newIdentity.Tty().Close()
 		if err != nil {
+			log.Println(err.Error())
 			return
 		}
 
 		id, err = newIdentity.GetOutput()
 		if err != nil {
+			log.Println(err.Error())
 			return
 		}
 	})

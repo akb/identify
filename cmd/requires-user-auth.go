@@ -74,7 +74,7 @@ func (c requiresUserAuthCommand) Command(ctx context.Context, args []string) int
 		return 1
 	}
 
-	fmt.Print("Enter passphrase: ")
+	fmt.Print("Passphrase: ")
 	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println("")
 	if err != nil {

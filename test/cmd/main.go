@@ -20,6 +20,7 @@ package test
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -119,7 +120,7 @@ func (c *CommandTest) Interact(fn func()) {
 
 func (c CommandTest) Authenticate(passphrase string) error {
 	var err error
-	_, err = c.Expectf("Enter passphrase:")
+	_, err = c.Expectf("Passphrase: ")
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v5"
@@ -10,7 +11,7 @@ import (
 func TestSecrets(t *testing.T) {
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
 
-	id, err := GenerateNewIdentity(passphrase)
+	id, _, err := GenerateNewIdentity(passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func TestSecrets(t *testing.T) {
 func TestSecretsBadPassphrase(t *testing.T) {
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
 
-	id, err := GenerateNewIdentity(passphrase)
+	id, _, err := GenerateNewIdentity(passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,10 +139,14 @@ func GenerateSecret(id, passphrase string) (string, string, error) {
 		err = newSecret.Authenticate(passphrase)
 		newSecret.Tty().Close()
 		if err != nil {
+			log.Println(err)
 			return
 		}
 
 		output, err = newSecret.GetOutput()
+		if err != nil {
+			log.Println(err)
+		}
 	})
 	if err != nil {
 		return "", "", err
