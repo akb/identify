@@ -25,7 +25,7 @@ import (
 )
 
 func promptForPassphrase() (string, error) {
-	fmt.Print("Enter passphrase: ")
+	fmt.Print("Passphrase: ")
 	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println("")
 	if err != nil {

@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
@@ -36,13 +37,21 @@ func (c newIdentityCommand) Command(ctx context.Context, args []string) int {
 		return 1
 	}
 
+	log.Printf("Creating local store at %s.", dbPath)
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
-		fmt.Println(err.Error())
-		return 1
+		log.Printf("An error occurred while opening identity database file:\n")
+		log.Fatal(err)
 	}
 	defer store.Close()
+
+	var alias string
+	fmt.Printf("Alias: ")
+	_, err = fmt.Scanf("%s", &alias)
+	if err != nil {
+		log.Printf("Error while reading alias.\n%s\n", err.Error())
+		log.Fatal(err)
+	}
 
 	passphrase, err := promptForPassphrase()
 	if err != nil {
@@ -50,7 +59,7 @@ func (c newIdentityCommand) Command(ctx context.Context, args []string) int {
 		return 1
 	}
 
-	public, _, err := store.NewIdentity(string(passphrase))
+	public, _, err := store.NewIdentity(string(passphrase), []string{alias})
 	if err != nil {
 		fmt.Printf("Error while creating new identity.\n%s\n", err.Error())
 		return 1
