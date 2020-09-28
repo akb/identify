@@ -21,9 +21,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"syscall"
 
 	"github.com/akb/identify/cmd/config"
 	"github.com/akb/identify/internal/identity"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type newIdentityCommand struct{}
@@ -49,14 +51,16 @@ func (c newIdentityCommand) Command(ctx context.Context, args []string) int {
 	fmt.Printf("Alias: ")
 	_, err = fmt.Scanf("%s", &alias)
 	if err != nil {
-		log.Printf("Error while reading alias.\n%s\n", err.Error())
+		log.Println("Error while reading alias.")
 		log.Fatal(err)
 	}
 
-	passphrase, err := promptForPassphrase()
+	fmt.Print("Passphrase: ")
+	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Println("")
 	if err != nil {
-		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
-		return 1
+		fmt.Println("Error while reading passphrase.")
+		log.Fatal(err)
 	}
 
 	public, _, err := store.NewIdentity(string(passphrase), []string{alias})
