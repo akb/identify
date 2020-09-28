@@ -70,7 +70,11 @@ type CommandTest struct {
 }
 
 func NewCommandTest(args []string, env map[string]string) (*CommandTest, error) {
-	c, err := expect.NewConsole()
+	timeout := 1 * time.Second
+	c, err := expect.NewConsole(func(opts *expect.ConsoleOpts) error {
+		opts.ReadTimeout = &timeout
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
