@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/akb/identify/internal/identity"
+	"github.com/akb/jwt-go-ed25519"
 )
 
 type Store interface {
@@ -91,7 +92,7 @@ func (s *localStore) New(identity identity.PrivateIdentity) (string, error) {
 	accessID := accessUUID.String()
 
 	atExpiry := time.Now().Add(AccessMaxAge).Unix()
-	at := jwt.NewWithClaims(SigningMethod, jwt.MapClaims{
+	at := jwt.NewWithClaims(ed25519.SigningMethod, jwt.MapClaims{
 		"exp":      atExpiry,
 		"jti":      accessID,
 		"identity": id,

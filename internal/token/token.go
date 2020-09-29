@@ -22,6 +22,8 @@ import (
 	"fmt"
 
 	"github.com/dgrijalva/jwt-go"
+
+	jwt_ed25519 "github.com/akb/jwt-go-ed25519"
 )
 
 type ErrorUnknownAlgorithm struct {
@@ -34,7 +36,7 @@ func (err ErrorUnknownAlgorithm) Error() string {
 
 func Parse(key ed25519.PublicKey, unparsed string) (*jwt.Token, error) {
 	return jwt.Parse(unparsed, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(SigningMethodEd25519); !ok {
+		if _, ok := token.Method.(jwt_ed25519.SigningMethodEd25519); !ok {
 			return nil, &ErrorUnknownAlgorithm{token.Header["alg"]}
 		}
 		return key, nil

@@ -27,6 +27,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/akb/identify/internal/token"
+	"github.com/akb/jwt-go-ed25519"
 )
 
 func TestNewTokenFormWithID(t *testing.T) {
@@ -55,7 +56,7 @@ func TestNewTokenFormWithID(t *testing.T) {
 	}
 
 	_, err = jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*token.SigningMethodEd25519); !ok {
+		if _, ok := t.Method.(*ed25519.SigningMethodEd25519); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
 		}
 
@@ -93,7 +94,7 @@ func TestNewTokenFormWithAlias(t *testing.T) {
 	}
 
 	_, err = jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*token.SigningMethodEd25519); !ok {
+		if _, ok := t.Method.(*ed25519.SigningMethodEd25519); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
 		}
 
