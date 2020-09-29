@@ -15,62 +15,57 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package newcmd
 
 import (
 	"context"
 	"fmt"
-	"os"
 
-	"github.com/akb/identify/cmd/config"
+	"github.com/akb/go-cli"
+
+	"github.com/akb/identify"
+	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/identity"
 )
 
-type getSecretCommand struct{}
+type NewSecretCommand struct{}
 
-func (getSecretCommand) Help() {
+func (NewSecretCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
-	fmt.Println("Usage: identify get secret <key> <value>")
+	fmt.Println("Usage: identify new secret <key> <value>")
 	fmt.Println("")
 	fmt.Println("Set the value of a secret")
 }
 
-func (c getSecretCommand) Command(ctx context.Context, args []string) int {
-	if len(os.Args) < 4 {
+func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.System) int {
+	if len(args) < 4 {
 		c.Help()
 		return 1
 	}
 
 	key := args[0]
+	value := args[1]
 
-	i := IdentityFromContext(ctx)
+	i := identify.IdentityFromContext(ctx)
 	if i == nil {
-		fmt.Println("unauthorized")
-		return 1
+		s.Fatal("unauthorized")
 	}
 
 	dbPath, err := config.GetDBPath()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		fmt.Printf("An error occurred while opening identity database file:\n")
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 	defer store.Close()
 
-	value, err := store.GetSecret(i, key)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+	if err = store.PutSecret(i, key, value); err != nil {
+		s.Fatal(err)
 	}
-
-	fmt.Println(value)
 
 	return 0
 }

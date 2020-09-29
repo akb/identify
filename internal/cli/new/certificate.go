@@ -15,22 +15,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package newcmd
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
-	"github.com/akb/identify/cmd/config"
+	"github.com/akb/go-cli"
+
+	"github.com/akb/identify"
 	"github.com/akb/identify/internal/certificate"
+	"github.com/akb/identify/internal/config"
 )
 
-type newCertificateCommand struct{}
+type NewCertificateCommand struct{}
 
-func (newCertificateCommand) Help() {
+func (NewCertificateCommand) Help() {
 	fmt.Println(`identify - authentication and authorization service
 
 Usage: identify new certificate
@@ -42,28 +44,28 @@ a bogus cert to get the http server running.
 `)
 }
 
-func (c newCertificateCommand) Command(ctx context.Context, args []string) int {
-	i := IdentityFromContext(ctx)
+func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli.System) int {
+	i := identify.IdentityFromContext(ctx)
 	if i == nil {
-		log.Fatal("unauthorized")
+		s.Fatal("unauthorized")
 	}
 
 	certificatePath, err := config.GetCertificatePath()
 	if err != nil {
-		log.Fatal(err)
+		s.Fatal(err)
 	}
 
 	certificateKeyPath, err := config.GetCertificateKeyPath()
 	if err != nil {
-		log.Fatal(err)
+		s.Fatal(err)
 	}
 
 	if _, err := os.Stat(certificatePath); !os.IsNotExist(err) {
 		var confirmation string
-		fmt.Printf("Certificate exists, overwrite? ")
-		_, err := fmt.Scan(&confirmation)
+		s.Printf("Certificate exists, overwrite? ")
+		_, err := s.Scan(&confirmation)
 		if err != nil {
-			log.Fatal(err)
+			s.Fatal(err)
 		}
 		confirmation = strings.TrimSpace(confirmation)
 		confirmation = strings.ToLower(confirmation)
@@ -73,9 +75,9 @@ func (c newCertificateCommand) Command(ctx context.Context, args []string) int {
 	}
 
 	if err := certificate.Generate(i, certificatePath, certificateKeyPath); err != nil {
-		log.Fatal(err)
+		s.Fatal(err)
 	}
 
-	log.Println("WARNING: Certificates should only be used for testing")
-	return 1
+	s.Println("WARNING: Certificates should only be used for testing")
+	return 0
 }

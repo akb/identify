@@ -15,18 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package deletecmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/akb/go-cli"
 )
 
-type deleteCommand struct{}
+type DeleteCommand struct{}
 
-func (deleteCommand) Help() {
+func (DeleteCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
 	fmt.Println("Usage: identify delete <resource> <id>")
@@ -34,13 +33,8 @@ func (deleteCommand) Help() {
 	fmt.Println("Delete resources.")
 }
 
-func (c deleteCommand) Command(ctx context.Context, args []string) int {
-	c.Help()
-	return 1
-}
-
-func (deleteCommand) Subcommands() cli.CLI {
+func (DeleteCommand) Subcommands() cli.CLI {
 	return cli.CLI{
-		"token": &deleteTokenCommand{},
+		"token": &DeleteTokenCommand{},
 	}
 }

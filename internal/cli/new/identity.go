@@ -15,60 +15,62 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package newcmd
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"flag"
 	"syscall"
 
-	"github.com/akb/identify/cmd/config"
+	"github.com/akb/go-cli"
+
+	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/identity"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-type newIdentityCommand struct{}
+type NewIdentityCommand struct {
+	alias *string
+}
 
-func (newIdentityCommand) Help() {}
+func (c *NewIdentityCommand) Flags(f *flag.FlagSet) {
+	c.alias = f.String("alias", "", "comma-separated list of aliases for identity")
+}
 
-func (c newIdentityCommand) Command(ctx context.Context, args []string) int {
+func (NewIdentityCommand) Help() {}
+
+func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.System) int {
 	dbPath, err := config.GetDBPath()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
-	log.Printf("Creating local store at %s.", dbPath)
+	s.Log("Creating local store at %s.", dbPath)
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		log.Printf("An error occurred while opening identity database file:\n")
-		log.Fatal(err)
+		s.Fatal(err)
 	}
 	defer store.Close()
 
-	var alias string
-	fmt.Printf("Alias: ")
-	_, err = fmt.Scanf("%s", &alias)
-	if err != nil {
-		log.Println("Error while reading alias.")
-		log.Fatal(err)
-	}
-
-	fmt.Print("Passphrase: ")
+	// FIXME: This is gross. In order to read the password silently, a syscall is
+	// made to disable echo. this makes decoupling IO using go's Reader/Writer
+	// impossible because the system is only aware of file descriptors.
+	s.Print("Passphrase: ")
 	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println("")
+	s.Println("")
 	if err != nil {
-		fmt.Println("Error while reading passphrase.")
-		log.Fatal(err)
+		s.Fatal(err)
 	}
 
-	public, _, err := store.NewIdentity(string(passphrase), []string{alias})
+	var aliases []string
+	if len(*c.alias) > 0 {
+		aliases = append(aliases, *c.alias)
+	}
+	public, _, err := store.NewIdentity(string(passphrase), aliases)
 	if err != nil {
-		fmt.Printf("Error while creating new identity.\n%s\n", err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
-	fmt.Println(public.String())
+	s.Println(public.String())
 	return 0
 }

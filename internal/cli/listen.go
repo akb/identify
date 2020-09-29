@@ -15,24 +15,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package cli
 
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net/http"
 
-	"github.com/akb/identify/cmd/config"
+	"github.com/akb/go-cli"
+
+	"github.com/akb/identify"
+	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/identity"
 	"github.com/akb/identify/internal/token"
 	"github.com/akb/identify/web"
 )
 
-type listenCommand struct{}
+type ListenCommand struct{}
 
-func (listenCommand) Help() {
+func (ListenCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
 	fmt.Println("Usage: identify new <resource>")
@@ -40,47 +42,45 @@ func (listenCommand) Help() {
 	fmt.Println("Create new resources.")
 }
 
-func (c listenCommand) Command(ctx context.Context, args []string) int {
+func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System) int {
 	address := config.GetHTTPAddress()
 	realm := config.GetRealm()
 
 	dbPath, err := config.GetDBPath()
 	if err != nil {
-		log.Fatal(err.Error())
+		s.Fatal(err)
 	}
 
 	tokenDBPath, err := config.GetTokenDBPath()
 	if err != nil {
-		log.Fatal(err.Error())
+		s.Fatal(err)
 	}
 
 	certPath, err := config.GetCertificatePath()
 	if err != nil {
-		log.Fatal(err.Error())
+		s.Fatal(err)
 	}
 
 	keyPath, err := config.GetCertificateKeyPath()
 	if err != nil {
-		log.Fatal(err.Error())
+		s.Fatal(err)
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		log.Printf("An error occurred while opening identity database file:\n")
-		log.Fatal(err.Error())
+		s.Fatal(err)
 	}
 	defer store.Close()
 
 	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
-		log.Printf("An error occurred while opening token database file:\n")
-		log.Fatal(err.Error())
+		s.Fatal(err)
 	}
 	defer tokenStore.Close()
 
-	identity := IdentityFromContext(ctx)
+	identity := identify.IdentityFromContext(ctx)
 	if identity == nil {
-		log.Fatal("Unauthorized")
+		s.Fatal("Unauthorized")
 	}
 
 	handler, err := web.NewHandler(&web.Config{
@@ -89,7 +89,7 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 		TokenStore:    tokenStore,
 	})
 	if err != nil {
-		log.Fatal(err.Error())
+		s.Fatal(err)
 	}
 
 	server := &http.Server{
@@ -98,7 +98,10 @@ func (c listenCommand) Command(ctx context.Context, args []string) int {
 		TLSConfig: &tls.Config{ServerName: realm},
 	}
 
-	log.Printf("Identity API listening for HTTP requests on %s...\n", address)
-	log.Fatal(server.ListenAndServeTLS(certPath, keyPath))
+	s.Printf("Identity API listening for HTTP requests on %s...\n", address)
+
+	if err = server.ListenAndServeTLS(certPath, keyPath); err != nil {
+		s.Fatal(err)
+	}
 	return 0
 }

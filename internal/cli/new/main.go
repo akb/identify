@@ -15,32 +15,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package newcmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/akb/go-cli"
+
+	"github.com/akb/identify"
 )
 
-type getCommand struct{}
+type NewCommand struct{}
 
-func (getCommand) Help() {
-	fmt.Println("identify - authentication and authorization service")
-	fmt.Println("")
-	fmt.Println("Usage: identify get <resource> <key>")
-	fmt.Println("")
-	fmt.Println("Get the value of a resource.")
+func (NewCommand) Help() {
+	fmt.Println(`identify - authentication and authorization service
+
+Usage: identify new <resource>
+
+Create new resources.
+
+Resources:
+identity
+secret
+certificate
+`)
 }
 
-func (c getCommand) Command(ctx context.Context, args []string) int {
-	c.Help()
-	return 1
-}
-
-func (c getCommand) Subcommands() cli.CLI {
+func (NewCommand) Subcommands() cli.CLI {
 	return cli.CLI{
-		"secret": RequiresUserAuth(&getSecretCommand{}),
+		"identity":    &NewIdentityCommand{},
+		"secret":      identify.RequiresCLIUserAuth(&NewSecretCommand{}),
+		"certificate": identify.RequiresCLIUserAuth(&NewCertificateCommand{}),
 	}
 }

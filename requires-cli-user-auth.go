@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package identify
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/akb/go-cli"
-	"github.com/akb/identify/cmd/config"
+	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/identity"
 )
 
@@ -34,27 +34,27 @@ type contextKey string
 
 const identityContextKey = contextKey("identity")
 
-func RequiresUserAuth(wrapped cli.Command) cli.Command {
-	return &requiresUserAuthCommand{nil, wrapped}
+func RequiresCLIUserAuth(wrapped cli.Command) cli.Command {
+	return &requiresCLIUserAuthCommand{nil, wrapped}
 }
 
-type requiresUserAuthCommand struct {
+type requiresCLIUserAuthCommand struct {
 	id      *string
 	wrapped cli.Command
 }
 
-func (c requiresUserAuthCommand) Help() {
+func (c requiresCLIUserAuthCommand) Help() {
 	c.wrapped.Help()
 }
 
-func (c *requiresUserAuthCommand) Flags(f *flag.FlagSet) {
+func (c *requiresCLIUserAuthCommand) Flags(f *flag.FlagSet) {
 	c.id = f.String("id", "", "your identity")
 	if b, ok := (interface{})(c.wrapped).(cli.HasFlags); ok {
 		b.Flags(f)
 	}
 }
 
-func (c requiresUserAuthCommand) Command(ctx context.Context, args []string) int {
+func (c requiresCLIUserAuthCommand) Command(ctx context.Context, args []string, s cli.System) int {
 	dbPath, err := config.GetDBPath()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -90,10 +90,15 @@ func (c requiresUserAuthCommand) Command(ctx context.Context, args []string) int
 
 	ctx = context.WithValue(ctx, identityContextKey, private)
 
-	return c.wrapped.Command(ctx, args)
+	if b, ok := (interface{})(c.wrapped).(cli.Action); ok {
+		return b.Command(ctx, args, s)
+	}
+
+	c.Help()
+	return 1
 }
 
-func (c requiresUserAuthCommand) Subcommands() cli.CLI {
+func (c requiresCLIUserAuthCommand) Subcommands() cli.CLI {
 	if b, ok := (interface{})(c.wrapped).(cli.HasSubcommands); ok {
 		return b.Subcommands()
 	}

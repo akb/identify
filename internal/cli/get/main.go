@@ -15,21 +15,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package get
 
 import (
-	"log"
-	"os"
+	"fmt"
 
-	gocli "github.com/akb/go-cli"
-
-	"github.com/akb/identify/internal/cli"
+	"github.com/akb/go-cli"
+	"github.com/akb/identify"
 )
 
-func main() {
-	os.Exit(gocli.Main(
-		&cli.IdentifyCommand{},
-		os.Stdin, os.Stdout,
-		log.New(os.Stderr, "", log.LstdFlags),
-	))
+type GetCommand struct{}
+
+func (GetCommand) Help() {
+	fmt.Println("identify - authentication and authorization service")
+	fmt.Println("")
+	fmt.Println("Usage: identify get <resource> <key>")
+	fmt.Println("")
+	fmt.Println("Get the value of a resource.")
+}
+
+func (c GetCommand) Subcommands() cli.CLI {
+	return cli.CLI{
+		"secret": identify.RequiresCLIUserAuth(&GetSecretCommand{}),
+	}
 }

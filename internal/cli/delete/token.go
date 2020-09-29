@@ -15,23 +15,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package deletecmd
 
 import (
 	"context"
 	"flag"
 	"fmt"
 
-	"github.com/akb/identify/cmd/config"
+	"github.com/akb/go-cli"
+
+	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/token"
 )
 
-type deleteTokenCommand struct {
+type DeleteTokenCommand struct {
 	id      *string
 	tokenID *string
 }
 
-func (deleteTokenCommand) Help() {
+func (DeleteTokenCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
 	fmt.Println("Usage: identify delete token <id>")
@@ -39,23 +41,20 @@ func (deleteTokenCommand) Help() {
 	fmt.Println("Delete a token.")
 }
 
-func (c *deleteTokenCommand) Flags(f *flag.FlagSet) {
+func (c *DeleteTokenCommand) Flags(f *flag.FlagSet) {
 	c.id = f.String("id", "", "identity to authenticate")
 	c.tokenID = f.String("token-id", "", "id of token to delete")
 }
 
-func (c deleteTokenCommand) Command(ctx context.Context, args []string) int {
+func (c DeleteTokenCommand) Command(ctx context.Context, args []string, s cli.System) int {
 	tokenDBPath, err := config.GetTokenDBPath()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
 	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
-		fmt.Println("An error occurred while opening token database file:")
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 	defer tokenStore.Close()
 
@@ -64,15 +63,13 @@ func (c deleteTokenCommand) Command(ctx context.Context, args []string) int {
 		id = *c.id
 		tokenID = *c.tokenID
 	} else {
-		fmt.Println("both an identity and a token must be specified")
-		return 1
+		s.Fatal("both an identity and a token must be specified")
 	}
 
 	if err := tokenStore.Delete(id, tokenID); err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
-	fmt.Println("Token successfully deleted")
+	s.Println("Token successfully deleted")
 	return 0
 }

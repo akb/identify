@@ -15,40 +15,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package cli
 
 import (
-	"context"
 	"fmt"
+	"strings"
 
 	"github.com/akb/go-cli"
+
+	"github.com/akb/identify"
+	"github.com/akb/identify/internal/cli/delete"
+	"github.com/akb/identify/internal/cli/get"
+	"github.com/akb/identify/internal/cli/new"
 )
 
-type newCommand struct{}
+type IdentifyCommand struct{}
 
-func (newCommand) Help() {
+func (c IdentifyCommand) Help() {
 	fmt.Println(`identify - authentication and authorization service
 
-Usage: identify new <resource>
+Usage: identify <subcommand>
 
-Create new resources.
-
-Resources:
-identity
-secret
-certificate
-`)
+Subcommands:`)
+	fmt.Println(strings.Join(c.Subcommands().ListSubcommands(""), "\n"))
 }
 
-func (c newCommand) Command(ctx context.Context, args []string) int {
-	c.Help()
-	return 1
-}
-
-func (newCommand) Subcommands() cli.CLI {
-	return cli.CLI{
-		"identity":    &newIdentityCommand{},
-		"secret":      RequiresUserAuth(&newSecretCommand{}),
-		"certificate": RequiresUserAuth(&newCertificateCommand{}),
+func (IdentifyCommand) Subcommands() cli.CLI {
+	return map[string]cli.Command{
+		"new":    &newcmd.NewCommand{},
+		"get":    &get.GetCommand{},
+		"delete": &deletecmd.DeleteCommand{},
+		"listen": identify.RequiresCLIUserAuth(&ListenCommand{}),
 	}
 }

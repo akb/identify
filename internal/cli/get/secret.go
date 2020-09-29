@@ -15,61 +15,58 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package get
 
 import (
 	"context"
-	"flag"
 	"fmt"
 
-	"github.com/akb/identify/cmd/config"
+	"github.com/akb/go-cli"
+
+	"github.com/akb/identify"
+	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/identity"
 )
 
-type openCommand struct {
-	from    *string
-	message *string
+type GetSecretCommand struct{}
+
+func (GetSecretCommand) Help() {
+	fmt.Println("identify - authentication and authorization service")
+	fmt.Println("")
+	fmt.Println("Usage: identify get secret <key> <value>")
+	fmt.Println("")
+	fmt.Println("Set the value of a secret")
 }
 
-func (openCommand) Help() {}
-
-func (c *openCommand) Flags(f *flag.FlagSet) {
-	c.from = f.String("from", "", "id of message sender")
-	c.message = f.String("message", "", "sealed message to open")
-}
-
-func (c openCommand) Command(ctx context.Context) int {
-	i := IdentityFromContext(ctx)
-	if i == nil {
-		fmt.Println("unauthorized")
+func (c GetSecretCommand) Command(ctx context.Context, args []string, s cli.System) int {
+	if len(args) < 3 {
+		c.Help()
 		return 1
+	}
+
+	key := args[0]
+
+	i := identify.IdentityFromContext(ctx)
+	if i == nil {
+		s.Fatal("unauthorized")
 	}
 
 	dbPath, err := config.GetDBPath()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 	defer store.Close()
 
-	from, err := store.GetIdentity(*c.from)
+	value, err := store.GetSecret(i, key)
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
-	message, err := i.OpenMessage(from, []byte(*c.message))
-	if err != nil {
-		fmt.Println(err.Error())
-		return 1
-	}
-
-	fmt.Println(message)
+	s.Println(value)
 	return 0
 }
