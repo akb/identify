@@ -26,7 +26,6 @@ import (
 	"github.com/brianvoe/gofakeit/v5"
 	"github.com/dgrijalva/jwt-go"
 
-	"github.com/akb/identify/internal/token"
 	"github.com/akb/jwt-go-ed25519"
 )
 
