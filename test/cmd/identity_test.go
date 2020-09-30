@@ -26,8 +26,8 @@ import (
 )
 
 func TestNewIdentityCommand(t *testing.T) {
-	alias := gofakeit.Username()
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
+	t.Logf("START Passphrase: %s\n", passphrase)
 
 	newIdentity, err := NewCommandTest(
 		[]string{"new", "identity"},
@@ -44,18 +44,6 @@ func TestNewIdentityCommand(t *testing.T) {
 	}
 
 	newIdentity.Interact(func() {
-		_, err = newIdentity.Expectf("Alias: ")
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-
-		_, err = newIdentity.SendLine(alias)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-
 		err := newIdentity.Authenticate(passphrase)
 		if err != nil {
 			t.Fatal(err)

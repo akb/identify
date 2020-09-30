@@ -69,9 +69,9 @@ type CommandTest struct {
 	wg *sync.WaitGroup
 }
 
-func NewCommandTest(args []string, env map[string]string) (*CommandTest, error) {
+func NewCommandTest(t *testing.T, args []string, env map[string]string) (*CommandTest, error) {
 	timeout := 1 * time.Second
-	c, err := expect.NewConsole(func(opts *expect.ConsoleOpts) error {
+	c, err := expect.NewTestConsole(t, func(opts *expect.ConsoleOpts) error {
 		opts.ReadTimeout = &timeout
 		return nil
 	})
@@ -79,7 +79,12 @@ func NewCommandTest(args []string, env map[string]string) (*CommandTest, error) 
 		return nil, err
 	}
 
-	cmd := exec.Command(commandName, args...)
+	var stderr bytes.Buffer
+	exitCode := gocli.Main(
+		&cli.IdentifyCommand{},
+		c.Tty(), c.Tty(),
+		log.New(stderr, "", log.LstdFlags),
+	)
 
 	cmd.Env = os.Environ()
 	for k, v := range env {
