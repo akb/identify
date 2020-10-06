@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.6.1 // indirect
 	github.com/tebeka/selenium v0.9.9
 	github.com/unrolled/logger v0.0.0-20190327162521-be1a2406c7c9
-	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
+	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	google.golang.org/api v0.31.0
 )
 

@@ -54,48 +54,43 @@ func (c *requiresCLIUserAuthCommand) Flags(f *flag.FlagSet) {
 	}
 }
 
-func (c requiresCLIUserAuthCommand) Command(ctx context.Context, args []string, s cli.System) int {
+func (c requiresCLIUserAuthCommand) Command(ctx context.Context, args []string, s cli.System) {
 	dbPath, err := config.GetDBPath()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
 	public, err := store.GetIdentity(*c.id)
 	store.Close()
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
 	fmt.Print("Passphrase: ")
 	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println("")
 	if err != nil {
-		fmt.Printf("Error while reading passphrase.\n%s\n", err.Error())
-		return 1
+		s.Fatalf("Error while reading passphrase.\n%s\n", err.Error())
 	}
 
 	private, err := public.Authenticate(string(passphrase))
 	if err != nil {
-		fmt.Println(err.Error())
-		return 1
+		s.Fatal(err)
 	}
 
 	ctx = context.WithValue(ctx, identityContextKey, private)
 
 	if b, ok := (interface{})(c.wrapped).(cli.Action); ok {
-		return b.Command(ctx, args, s)
+		b.Command(ctx, args, s)
 	}
 
 	c.Help()
-	return 1
+	s.Exit(1)
 }
 
 func (c requiresCLIUserAuthCommand) Subcommands() cli.CLI {

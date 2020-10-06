@@ -44,7 +44,7 @@ a bogus cert to get the http server running.
 `)
 }
 
-func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli.System) int {
+func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli.System) {
 	i := identify.IdentityFromContext(ctx)
 	if i == nil {
 		s.Fatal("unauthorized")
@@ -70,7 +70,7 @@ func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli
 		confirmation = strings.TrimSpace(confirmation)
 		confirmation = strings.ToLower(confirmation)
 		if confirmation[0] != 'y' {
-			return 0
+			return
 		}
 	}
 
@@ -79,5 +79,4 @@ func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli
 	}
 
 	s.Println("WARNING: Certificates should only be used for testing")
-	return 0
 }

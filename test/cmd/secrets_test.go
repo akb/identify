@@ -2,161 +2,137 @@ package test
 
 import (
 	"fmt"
-	"log"
 	"testing"
 
+	"github.com/Netflix/go-expect"
 	"github.com/brianvoe/gofakeit/v5"
 )
 
 func TestSecrets(t *testing.T) {
+	var err error
+
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
 
-	id, _, err := GenerateNewIdentity(passphrase)
+	id, _, err := GenerateNewIdentity(t, passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	key, value, err := GenerateSecret(id, passphrase)
+	key, value, err := GenerateSecret(t, id, passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	getSecret, err := NewCommandTest(
-		[]string{"get", "secret", key, fmt.Sprintf("-id=%s", id)},
-		map[string]string{"IDENTIFY_DB_PATH": dbPath},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer getSecret.Close()
+	environment := map[string]string{"IDENTIFY_DB_PATH": dbPath}
+	arguments := []string{"get", "secret", key, fmt.Sprintf("-id=%s", id)}
 
-	err = getSecret.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var output string
-	getSecret.Interact(func() {
-		err = getSecret.Authenticate(passphrase)
-		getSecret.Tty().Close()
+	var stdout string
+	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
+		_, err = c.Expectf("Passphrase: ")
 		if err != nil {
 			return
 		}
 
-		output, err = getSecret.GetOutput()
-	})
+		_, err = c.SendLine(passphrase)
+		if err != nil {
+			return
+		}
 
-	getSecret.Wait()
+		stdout, err = c.ExpectEOF()
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if getSecret.StatusCode != 0 {
+	if status != 0 {
 		t.Fatal("expected zero exit status")
 	}
 
-	if output != value {
-		t.Fatalf("output did not match value. output: %s, value %s\n", output, value)
+	if stdout != value {
+		t.Fatalf("output did not match value. output: %s, value %s\n", stdout, value)
 	}
 }
 
 func TestSecretsBadPassphrase(t *testing.T) {
+	var err error
+
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
 
-	id, _, err := GenerateNewIdentity(passphrase)
+	id, _, err := GenerateNewIdentity(t, passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	key, value, err := GenerateSecret(id, passphrase)
+	key, value, err := GenerateSecret(t, id, passphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	getSecret, err := NewCommandTest(
-		[]string{"get", "secret", key, fmt.Sprintf("-id=%s", id)},
-		map[string]string{"IDENTIFY_DB_PATH": dbPath},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer getSecret.Close()
+	arguments := []string{"get", "secret", key, fmt.Sprintf("-id=%s", id)}
+	environment := map[string]string{"IDENTIFY_DB_PATH": dbPath}
 
-	err = getSecret.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var output string
-	getSecret.Interact(func() {
-		err = getSecret.Authenticate("not-the-right-passphrase")
-		getSecret.Tty().Close()
+	var stdout string
+	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
+		_, err = c.Expectf("Passphrase: ")
 		if err != nil {
 			return
 		}
 
-		output, err = getSecret.GetOutput()
-	})
+		_, err = c.SendLine("not-the-right-passphrase")
+		if err != nil {
+			return
+		}
 
-	getSecret.Wait()
+		stdout, err = c.ExpectEOF()
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if getSecret.StatusCode == 0 {
+	if status == 0 {
 		t.Fatal("expected nonzero exit status")
 	}
 
-	if output == value {
-		t.Fatal("output contained value but should not have")
+	if len(stdout) == 0 {
+		t.Error("command with error status should print error text")
 	}
 
-	if len(output) == 0 {
-		t.Error("command with error status should print error text")
+	if stdout == value {
+		t.Fatal("output contained value but should not have")
 	}
 }
 
-func GenerateSecret(id, passphrase string) (string, string, error) {
+func GenerateSecret(t *testing.T, id, passphrase string) (string, string, error) {
 	key := gofakeit.Word()
 	value := gofakeit.Word()
 
-	newSecret, err := NewCommandTest(
-		[]string{"new", "secret", key, value, fmt.Sprintf("-id=%s", id)},
-		map[string]string{"IDENTIFY_DB_PATH": dbPath},
-	)
-	if err != nil {
-		return "", "", err
-	}
-	defer newSecret.Close()
+	environment := map[string]string{"IDENTIFY_DB_PATH": dbPath}
+	arguments := []string{"new", "secret", key, value, fmt.Sprintf("-id=%s", id)}
 
-	err = newSecret.Start()
-	if err != nil {
-		return "", "", err
-	}
-
-	var output string
-	newSecret.Interact(func() {
-		err = newSecret.Authenticate(passphrase)
-		newSecret.Tty().Close()
+	var stdout string
+	var err error
+	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
+		_, err = c.Expectf("Passphrase: ")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
-		output, err = newSecret.GetOutput()
+		_, err = c.SendLine(passphrase)
 		if err != nil {
-			log.Println(err)
+			return
+		}
+
+		stdout, err = c.ExpectEOF()
+		if err != nil {
+			return
 		}
 	})
 	if err != nil {
 		return "", "", err
 	}
 
-	newSecret.Wait()
-
-	if newSecret.StatusCode != 0 {
-		err := fmt.Errorf("expected zero exit status; received %d.\ncommand output:\n%s\n", newSecret.StatusCode, output)
-		return "", "", err
+	if status != 0 {
+		t.Errorf("expected zero exit status; received %d.\ncommand output:\n%s\n", status, stdout)
 	}
 
 	return key, value, nil

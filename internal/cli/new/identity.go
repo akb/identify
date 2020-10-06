@@ -20,13 +20,11 @@ package newcmd
 import (
 	"context"
 	"flag"
-	"syscall"
 
 	"github.com/akb/go-cli"
 
 	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/identity"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type NewIdentityCommand struct {
@@ -39,25 +37,21 @@ func (c *NewIdentityCommand) Flags(f *flag.FlagSet) {
 
 func (NewIdentityCommand) Help() {}
 
-func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.System) int {
+func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.System) {
 	dbPath, err := config.GetDBPath()
 	if err != nil {
 		s.Fatal(err)
 	}
 
-	s.Log("Creating local store at %s.", dbPath)
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
 		s.Fatal(err)
 	}
 	defer store.Close()
 
-	// FIXME: This is gross. In order to read the password silently, a syscall is
-	// made to disable echo. this makes decoupling IO using go's Reader/Writer
-	// impossible because the system is only aware of file descriptors.
 	s.Print("Passphrase: ")
-	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
-	s.Println("")
+	passphrase, err := s.ScanSilent()
+	s.Println()
 	if err != nil {
 		s.Fatal(err)
 	}
@@ -66,11 +60,11 @@ func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.Sy
 	if len(*c.alias) > 0 {
 		aliases = append(aliases, *c.alias)
 	}
+
 	public, _, err := store.NewIdentity(string(passphrase), aliases)
 	if err != nil {
 		s.Fatal(err)
 	}
 
 	s.Println(public.String())
-	return 0
 }

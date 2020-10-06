@@ -38,10 +38,10 @@ func (NewSecretCommand) Help() {
 	fmt.Println("Set the value of a secret")
 }
 
-func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.System) int {
+func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.System) {
 	if len(args) < 4 {
 		c.Help()
-		return 1
+		s.Exit(1)
 	}
 
 	key := args[0]
@@ -66,6 +66,4 @@ func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.Syst
 	if err = store.PutSecret(i, key, value); err != nil {
 		s.Fatal(err)
 	}
-
-	return 0
 }

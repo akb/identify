@@ -18,28 +18,23 @@
 package test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/Netflix/go-expect"
 	"github.com/brianvoe/gofakeit/v5"
+
+	gocli "github.com/akb/go-cli"
+
+	"github.com/akb/identify/internal/cli"
 )
 
-var commandName string
 var dbPath string
 
 func init() {
-	commandName = os.Getenv("IDENTIFY_COMMAND")
-	if len(commandName) == 0 {
-		commandName = "../../bin/identify"
-	}
 	gofakeit.Seed(time.Now().UnixNano())
 }
 
@@ -55,97 +50,58 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-type CommandTest struct {
-	*expect.Console
-	*exec.Cmd
-
-	Name string
-	Args []string
-
+type CommandTestResult struct {
 	StatusCode int
-
-	Output string
-
-	wg *sync.WaitGroup
 }
 
-func NewCommandTest(t *testing.T, args []string, env map[string]string) (*CommandTest, error) {
-	timeout := 1 * time.Second
-	c, err := expect.NewTestConsole(t, func(opts *expect.ConsoleOpts) error {
-		opts.ReadTimeout = &timeout
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
+func RunCommandTest(t *testing.T,
+	environment map[string]string,
+	arguments []string,
+	interact func(*expect.Console),
+) int {
+	system := gocli.NewTestSystem(t, arguments, environment)
 
-	var stderr bytes.Buffer
-	exitCode := gocli.Main(
-		&cli.IdentifyCommand{},
-		c.Tty(), c.Tty(),
-		log.New(stderr, "", log.LstdFlags),
-	)
-
-	cmd.Env = os.Environ()
-	for k, v := range env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	cmd.Stdin = c.Tty()
-	cmd.Stdout = c.Tty()
-
-	return &CommandTest{c, cmd, commandName, args, -1, "", &sync.WaitGroup{}}, nil
-}
-
-func (c *CommandTest) Close() {
-	c.Console.Tty().Close()
-	c.Console.Close()
-}
-
-func (c *CommandTest) Wait() error {
-	err := c.Cmd.Wait()
-	if err, ok := err.(*exec.ExitError); ok {
-		c.StatusCode = err.ExitCode()
-	}
-	if err == nil {
-		c.StatusCode = 0
-	}
-	c.wg.Wait()
-	return err
-}
-
-func (c *CommandTest) Interact(fn func()) {
-	c.wg.Add(1)
+	done := make(chan struct{})
 	go func() {
-		defer c.wg.Done()
-		fn()
+		interact(system.Console)
+		done <- struct{}{}
 	}()
+
+	arguments = append([]string{os.Args[0]}, arguments...)
+	status := gocli.Main(&cli.IdentifyCommand{}, system)
+	<-done
+	return status
 }
 
-func (c CommandTest) Authenticate(passphrase string) error {
-	var err error
-	_, err = c.Expectf("Passphrase: ")
-	if err != nil {
-		return err
-	}
+//func (c *CommandTest) Close() {
+//	c.Console.Tty().Close()
+//	c.Console.Close()
+//}
 
-	_, err = c.SendLine(passphrase)
-	if err != nil {
-		return err
-	}
+//func (c CommandTest) Authenticate(passphrase string) error {
+//	var err error
+//	_, err = c.Expectf("Passphrase: ")
+//	if err != nil {
+//		return err
+//	}
+//
+//	_, err = c.SendLine(passphrase)
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
-	return nil
-}
-
-func (c *CommandTest) GetOutput() (string, error) {
-	output, err := c.ExpectEOF()
-	if err != nil {
-		return "", err
-	}
-
-	trimmed := strings.TrimSpace(output)
-
-	c.Output = trimmed
-
-	return trimmed, nil
-}
+//func (c *CommandTest) GetOutput() (string, error) {
+//	output, err := c.ExpectEOF()
+//	if err != nil {
+//		return "", err
+//	}
+//
+//	trimmed := strings.TrimSpace(output)
+//
+//	c.Output = trimmed
+//
+//	return trimmed, nil
+//}

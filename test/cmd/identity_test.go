@@ -18,99 +18,82 @@
 package test
 
 import (
-	"log"
+	"strings"
 	"testing"
 
+	"github.com/Netflix/go-expect"
 	"github.com/brianvoe/gofakeit/v5"
 	"github.com/google/uuid"
 )
 
 func TestNewIdentityCommand(t *testing.T) {
 	passphrase := gofakeit.Password(true, true, true, true, true, 33)
-	t.Logf("START Passphrase: %s\n", passphrase)
 
-	newIdentity, err := NewCommandTest(
-		[]string{"new", "identity"},
-		map[string]string{"IDENTIFY_DB_PATH": dbPath},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer newIdentity.Close()
+	environment := map[string]string{"IDENTIFY_DB_PATH": dbPath}
 
-	err = newIdentity.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
+	arguments := []string{"new", "identity"}
 
-	newIdentity.Interact(func() {
-		err := newIdentity.Authenticate(passphrase)
+	var err error
+	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
+		_, err = c.Expectf("Passphrase: ")
 		if err != nil {
-			t.Fatal(err)
+			return
 		}
 
-		newIdentity.Tty().Close()
-
-		output, err := newIdentity.GetOutput()
+		_, err = c.SendLine(passphrase)
 		if err != nil {
-			t.Fatal(err)
+			return
 		}
 
-		_, err = uuid.Parse(output)
+		stdout, err := c.ExpectEOF()
 		if err != nil {
-			t.Errorf("Failed to parse UUID from: %s\n", output)
-			t.Fatal(err)
+			return
+		}
+
+		_, err = uuid.Parse(strings.TrimSpace(stdout))
+		if err != nil {
+			t.Errorf("Failed to parse UUID from: %s\n", strings.TrimSpace(stdout))
+			return
 		}
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	newIdentity.Wait()
+	if status != 0 {
+		t.Fatal("\"new identity\" returned nonzero status")
+	}
 }
 
-func GenerateNewIdentity(passphrase string) (id, alias string, err error) {
+func GenerateNewIdentity(t *testing.T, passphrase string) (id, alias string, err error) {
 	alias = gofakeit.Username()
 
-	newIdentity, err := NewCommandTest(
-		[]string{"new", "identity"},
-		map[string]string{"IDENTIFY_DB_PATH": dbPath},
-	)
-	if err != nil {
-		return
-	}
-	defer newIdentity.Close()
+	environment := map[string]string{"IDENTIFY_DB_PATH": dbPath}
 
-	err = newIdentity.Start()
-	if err != nil {
-		return
-	}
-
-	newIdentity.Interact(func() {
-		_, err = newIdentity.Expectf("Alias: ")
+	arguments := []string{"new", "identity"}
+	RunCommandTest(t, environment, arguments, func(c *expect.Console) {
+		_, err = c.Expectf("Passphrase: ")
 		if err != nil {
-			log.Println(err.Error())
 			return
 		}
 
-		_, err = newIdentity.SendLine(alias)
+		_, err = c.SendLine(passphrase)
 		if err != nil {
-			log.Println(err.Error())
 			return
 		}
 
-		err = newIdentity.Authenticate(passphrase)
-		newIdentity.Tty().Close()
+		stdout, err := c.ExpectEOF()
 		if err != nil {
-			log.Println(err.Error())
 			return
 		}
 
-		id, err = newIdentity.GetOutput()
+		id = strings.TrimSpace(stdout)
+
+		_, err = uuid.Parse(id)
 		if err != nil {
-			log.Println(err.Error())
 			return
 		}
 	})
-
-	newIdentity.Wait()
 
 	return
 }

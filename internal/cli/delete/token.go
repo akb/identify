@@ -46,7 +46,7 @@ func (c *DeleteTokenCommand) Flags(f *flag.FlagSet) {
 	c.tokenID = f.String("token-id", "", "id of token to delete")
 }
 
-func (c DeleteTokenCommand) Command(ctx context.Context, args []string, s cli.System) int {
+func (c DeleteTokenCommand) Command(ctx context.Context, args []string, s cli.System) {
 	tokenDBPath, err := config.GetTokenDBPath()
 	if err != nil {
 		s.Fatal(err)
@@ -71,5 +71,4 @@ func (c DeleteTokenCommand) Command(ctx context.Context, args []string, s cli.Sy
 	}
 
 	s.Println("Token successfully deleted")
-	return 0
 }

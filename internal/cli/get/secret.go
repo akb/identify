@@ -38,10 +38,10 @@ func (GetSecretCommand) Help() {
 	fmt.Println("Set the value of a secret")
 }
 
-func (c GetSecretCommand) Command(ctx context.Context, args []string, s cli.System) int {
+func (c GetSecretCommand) Command(ctx context.Context, args []string, s cli.System) {
 	if len(args) < 3 {
 		c.Help()
-		return 1
+		s.Exit(1)
 	}
 
 	key := args[0]
@@ -68,5 +68,4 @@ func (c GetSecretCommand) Command(ctx context.Context, args []string, s cli.Syst
 	}
 
 	s.Println(value)
-	return 0
 }
