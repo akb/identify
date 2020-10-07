@@ -72,36 +72,3 @@ func RunCommandTest(t *testing.T,
 	<-done
 	return status
 }
-
-//func (c *CommandTest) Close() {
-//	c.Console.Tty().Close()
-//	c.Console.Close()
-//}
-
-//func (c CommandTest) Authenticate(passphrase string) error {
-//	var err error
-//	_, err = c.Expectf("Passphrase: ")
-//	if err != nil {
-//		return err
-//	}
-//
-//	_, err = c.SendLine(passphrase)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
-
-//func (c *CommandTest) GetOutput() (string, error) {
-//	output, err := c.ExpectEOF()
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	trimmed := strings.TrimSpace(output)
-//
-//	c.Output = trimmed
-//
-//	return trimmed, nil
-//}
