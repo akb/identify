@@ -33,5 +33,5 @@ func init() {
 }
 
 func main() {
-	os.Exit(gocli.Main(&cli.IdentifyCommand{}, os.Stdin, os.Stdout, logger))
+	os.Exit(gocli.Main(&cli.IdentifyCommand{}, gocli.NewUnixSystem()))
 }
