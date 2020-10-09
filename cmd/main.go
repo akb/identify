@@ -26,12 +26,6 @@ import (
 	"github.com/akb/identify/internal/cli"
 )
 
-var logger *log.Logger
-
-func init() {
-	logger = log.New(os.Stderr, "", log.LstdFlags)
-}
-
 func main() {
 	os.Exit(gocli.Main(&cli.IdentifyCommand{}, gocli.NewUnixSystem()))
 }
