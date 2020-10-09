@@ -87,10 +87,10 @@ func (c requiresCLIUserAuthCommand) Command(ctx context.Context, args []string, 
 
 	if b, ok := (interface{})(c.wrapped).(cli.Action); ok {
 		b.Command(ctx, args, s)
+	} else {
+		c.Help()
+		s.Exit(1)
 	}
-
-	c.Help()
-	s.Exit(1)
 }
 
 func (c requiresCLIUserAuthCommand) Subcommands() cli.CLI {
