@@ -66,29 +66,33 @@ func GenerateNewIdentity(t *testing.T) (*TestIdentity, error) {
 	arguments := []string{"new", "identity", fmt.Sprintf("-alias=%s", ti.Alias)}
 
 	var err error
+	t.Logf("running '%s'", strings.Join(arguments, " "))
 	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
 		var id string
+		t.Log("waiting for passphrase prompt...")
 		_, err = c.Expectf("Passphrase: ")
 		if err != nil {
 			return
 		}
 
+		t.Logf("sending passphrase %s", ti.Passphrase)
 		_, err = c.SendLine(ti.Passphrase)
 		if err != nil {
 			return
 		}
 
+		t.Log("waiting for uuid...")
 		id, err = c.Expect(expect.Regexp(UUIDPattern))
 		if err != nil {
 			return
 		}
 
-		c.Tty().Close()
+		done := CloseSoon(c.Tty())
 
+		t.Log("waiting for eof...")
 		_, err = c.ExpectEOF()
-		if err != nil {
-			return
-		}
+		t.Log("waiting for tty to close...")
+		<-done
 
 		id = strings.TrimSpace(id)
 

@@ -9,6 +9,14 @@ import (
 	"github.com/brianvoe/gofakeit/v5"
 )
 
+type ErrorNonZeroExit struct {
+	status int
+}
+
+func (err ErrorNonZeroExit) Error() string {
+	return fmt.Sprintf("expected zero exit status; received %d", err.status)
+}
+
 type TestSecret struct {
 	Key   string
 	Value string
@@ -37,6 +45,40 @@ func TestSecrets(t *testing.T) {
 
 	if value != ts.Value {
 		t.Fatalf("returned value '%s' does not match expected value '%s'", value, ts.Value)
+	}
+}
+
+func TestSecretsBadPassphrase(t *testing.T) {
+	var err error
+
+	t.Log("generating identity...")
+	ti, err := GenerateNewIdentity(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("generating impostor...")
+	iti, err := GenerateNewIdentity(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("generating secret...")
+	ts, err := GenerateSecret(t, ti)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("key: '%s', value: '%s'\n", ts.Key, ts.Value)
+
+	value, err := GetSecret(t, iti, ts.Key)
+	if err != nil {
+		if _, ok := err.(ErrorNonZeroExit); !ok {
+			t.Fatal(err)
+		}
+	}
+
+	if value == ts.Value {
+		t.Fatalf("command returned a value when it should not have")
 	}
 }
 
@@ -74,7 +116,7 @@ func GenerateSecret(t *testing.T, ti *TestIdentity) (*TestSecret, error) {
 	}
 
 	if status != 0 {
-		t.Fatalf("expected zero exit status; received %d.\n", status)
+		return nil, ErrorNonZeroExit{status}
 	}
 
 	return &ts, err
@@ -112,9 +154,11 @@ func GetSecret(t *testing.T, ti *TestIdentity, key string) (string, error) {
 		t.Fatal(err)
 	}
 
+	value = strings.TrimSpace(value)
+
 	if status != 0 {
-		t.Fatal("expected zero exit status")
+		return value, ErrorNonZeroExit{status}
 	}
 
-	return strings.TrimSpace(value), err
+	return value, err
 }
