@@ -59,6 +59,7 @@ func RunCommandTest(t *testing.T,
 	arguments []string,
 	interact func(*expect.Console),
 ) int {
+	arguments = append([]string{os.Args[0]}, arguments...)
 	system := gocli.NewTestSystem(t, arguments, environment)
 
 	done := make(chan struct{})
@@ -67,7 +68,6 @@ func RunCommandTest(t *testing.T,
 		done <- struct{}{}
 	}()
 
-	arguments = append([]string{os.Args[0]}, arguments...)
 	status := gocli.Main(&cli.IdentifyCommand{}, system)
 	<-done
 	return status
