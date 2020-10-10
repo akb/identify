@@ -39,7 +39,7 @@ func (NewSecretCommand) Help() {
 }
 
 func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.System) {
-	if len(args) < 2 {
+	if len(args) != 2 {
 		c.Help()
 		s.Exit(1)
 	}

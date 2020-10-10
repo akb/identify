@@ -18,7 +18,6 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	gocli "github.com/akb/go-cli"

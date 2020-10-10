@@ -20,10 +20,6 @@ package identify
 import (
 	"context"
 	"flag"
-	"fmt"
-	"syscall"
-
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/akb/go-cli"
 	"github.com/akb/identify/internal/config"
@@ -71,14 +67,14 @@ func (c requiresCLIUserAuthCommand) Command(ctx context.Context, args []string, 
 		s.Fatal(err)
 	}
 
-	fmt.Print("Passphrase: ")
-	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println("")
+	s.Print("Passphrase: ")
+	passphrase, err := s.ReadPassword()
+	s.Println()
 	if err != nil {
 		s.Fatalf("Error while reading passphrase.\n%s\n", err.Error())
 	}
 
-	private, err := public.Authenticate(string(passphrase))
+	private, err := public.Authenticate(passphrase)
 	if err != nil {
 		s.Fatal(err)
 	}

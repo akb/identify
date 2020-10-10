@@ -39,7 +39,7 @@ func (GetSecretCommand) Help() {
 }
 
 func (c GetSecretCommand) Command(ctx context.Context, args []string, s cli.System) {
-	if len(args) < 3 {
+	if len(args) != 1 {
 		c.Help()
 		s.Exit(1)
 	}

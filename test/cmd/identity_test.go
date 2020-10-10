@@ -18,6 +18,8 @@
 package test
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -26,74 +28,80 @@ import (
 	"github.com/google/uuid"
 )
 
+var UUIDPattern *regexp.Regexp
+
+func init() {
+	UUIDPattern = regexp.MustCompile(
+		`[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}`,
+	)
+}
+
+type TestIdentity struct {
+	ID         string
+	Alias      string
+	Passphrase string
+}
+
 func TestNewIdentityCommand(t *testing.T) {
-	passphrase := gofakeit.Password(true, true, true, true, true, 33)
-
-	environment := map[string]string{"IDENTIFY_DB_PATH": dbPath}
-
-	arguments := []string{"new", "identity"}
-
-	var err error
-	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
-		_, err = c.Expectf("Passphrase: ")
-		if err != nil {
-			return
-		}
-
-		_, err = c.SendLine(passphrase)
-		if err != nil {
-			return
-		}
-
-		stdout, err := c.ExpectEOF()
-		if err != nil {
-			return
-		}
-
-		_, err = uuid.Parse(strings.TrimSpace(stdout))
-		if err != nil {
-			t.Errorf("Failed to parse UUID from: %s\n", strings.TrimSpace(stdout))
-			return
-		}
-	})
+	ti, err := GenerateNewIdentity(t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if status != 0 {
-		t.Fatal("\"new identity\" returned nonzero status")
+	_, err = uuid.Parse(ti.ID)
+	if err != nil {
+		t.Fatalf("did not generate a valid uuid, instead received: '%s'\n", ti.ID)
 	}
 }
 
-func GenerateNewIdentity(t *testing.T, passphrase string) (id, alias string, err error) {
-	alias = gofakeit.Username()
+func GenerateNewIdentity(t *testing.T) (*TestIdentity, error) {
+	ti := TestIdentity{
+		ID:         "",
+		Alias:      gofakeit.Username(),
+		Passphrase: gofakeit.Password(true, true, true, true, true, 33),
+	}
 
 	environment := map[string]string{"IDENTIFY_DB_PATH": dbPath}
 
-	arguments := []string{"new", "identity"}
-	RunCommandTest(t, environment, arguments, func(c *expect.Console) {
+	arguments := []string{"new", "identity", fmt.Sprintf("-alias=%s", ti.Alias)}
+
+	var err error
+	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
+		var id string
 		_, err = c.Expectf("Passphrase: ")
 		if err != nil {
 			return
 		}
 
-		_, err = c.SendLine(passphrase)
+		_, err = c.SendLine(ti.Passphrase)
 		if err != nil {
 			return
 		}
 
-		stdout, err := c.ExpectEOF()
+		id, err = c.Expect(expect.Regexp(UUIDPattern))
 		if err != nil {
 			return
 		}
 
-		id = strings.TrimSpace(stdout)
+		c.Tty().Close()
+
+		_, err = c.ExpectEOF()
+		if err != nil {
+			return
+		}
+
+		id = strings.TrimSpace(id)
 
 		_, err = uuid.Parse(id)
 		if err != nil {
 			return
 		}
-	})
 
-	return
+		ti.ID = id
+	})
+	if status != 0 {
+		return nil, fmt.Errorf("error: '%s' returned nonzero status", strings.Join(arguments, " "))
+	}
+
+	return &ti, err
 }

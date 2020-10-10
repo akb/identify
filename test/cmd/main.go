@@ -72,3 +72,13 @@ func RunCommandTest(t *testing.T,
 	<-done
 	return status
 }
+
+func CloseSoon(f *os.File) chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		f.Close()
+		done <- struct{}{}
+	}()
+	return done
+}

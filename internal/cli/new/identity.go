@@ -50,7 +50,7 @@ func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.Sy
 	defer store.Close()
 
 	s.Print("Passphrase: ")
-	passphrase, err := s.ScanSilent()
+	passphrase, err := s.ReadPassword()
 	s.Println()
 	if err != nil {
 		s.Fatal(err)

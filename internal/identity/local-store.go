@@ -141,7 +141,6 @@ func (s *localStore) GetIdentity(id string) (PublicIdentity, error) {
 		if unparsed == nil {
 			return fmt.Errorf("could not find identity for id %s", id)
 		}
-		log.Printf("retrieved identity: %s\n", id)
 
 		return json.Unmarshal(unparsed, &identity)
 	})
