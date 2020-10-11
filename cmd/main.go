@@ -18,7 +18,10 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"os/signal"
 
 	gocli "github.com/akb/go-cli"
 
@@ -26,5 +29,15 @@ import (
 )
 
 func main() {
-	os.Exit(gocli.Main(&cli.IdentifyCommand{}, gocli.NewUnixSystem()))
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-c
+		fmt.Println("Received SIGINT, shutting down.")
+		cancel()
+	}()
+
+	os.Exit(gocli.Main(ctx, &cli.IdentifyCommand{}, gocli.NewUnixSystem()))
 }

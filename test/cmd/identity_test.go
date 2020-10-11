@@ -18,10 +18,12 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Netflix/go-expect"
 	"github.com/brianvoe/gofakeit/v5"
@@ -67,43 +69,45 @@ func GenerateNewIdentity(t *testing.T) (*TestIdentity, error) {
 
 	var err error
 	t.Logf("running '%s'", strings.Join(arguments, " "))
-	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
-		var id string
-		t.Log("waiting for passphrase prompt...")
-		_, err = c.Expectf("Passphrase: ")
-		if err != nil {
-			return
-		}
+	result := RunCommandTest(t, environment, arguments,
+		func(c *expect.Console, cancel context.CancelFunc) {
+			var id string
+			t.Log("waiting for passphrase prompt...")
+			_, err = c.Expectf("Passphrase: ")
+			if err != nil {
+				return
+			}
 
-		t.Logf("sending passphrase %s", ti.Passphrase)
-		_, err = c.SendLine(ti.Passphrase)
-		if err != nil {
-			return
-		}
+			t.Logf("sending passphrase %s", ti.Passphrase)
+			_, err = c.SendLine(ti.Passphrase)
+			if err != nil {
+				return
+			}
 
-		t.Log("waiting for uuid...")
-		id, err = c.Expect(expect.Regexp(UUIDPattern))
-		if err != nil {
-			return
-		}
+			t.Log("waiting for uuid...")
+			id, err = c.Expect(expect.Regexp(UUIDPattern))
+			if err != nil {
+				return
+			}
 
-		done := CloseSoon(c.Tty())
+			done := In(10*time.Millisecond, func() { c.Tty().Close() })
 
-		t.Log("waiting for eof...")
-		_, err = c.ExpectEOF()
-		t.Log("waiting for tty to close...")
-		<-done
+			t.Log("waiting for eof...")
+			_, err = c.ExpectEOF()
+			t.Log("waiting for tty to close...")
+			<-done
 
-		id = strings.TrimSpace(id)
+			id = strings.TrimSpace(id)
 
-		_, err = uuid.Parse(id)
-		if err != nil {
-			return
-		}
+			_, err = uuid.Parse(id)
+			if err != nil {
+				return
+			}
 
-		ti.ID = id
-	})
-	if status != 0 {
+			ti.ID = id
+		},
+	)
+	if result.Status != 0 {
 		return nil, fmt.Errorf("error: '%s' returned nonzero status", strings.Join(arguments, " "))
 	}
 

@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/akb/go-cli"
 
@@ -37,12 +38,12 @@ type ListenCommand struct{}
 func (ListenCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
-	fmt.Println("Usage: identify new <resource>")
+	fmt.Println("Usage: identify listen")
 	fmt.Println("")
-	fmt.Println("Create new resources.")
+	fmt.Println("Listen for HTTPS traffic")
 }
 
-func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System) int {
+func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System) {
 	address := config.GetHTTPAddress()
 	realm := config.GetRealm()
 
@@ -98,10 +99,20 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 		TLSConfig: &tls.Config{ServerName: realm},
 	}
 
-	s.Printf("Identity API listening for HTTP requests on %s...\n", address)
+	go func() {
+		s.Printf("Listening for HTTP requests on %s...\n", address)
+		err = server.ListenAndServeTLS(certPath, keyPath)
+		if err != nil && err != http.ErrServerClosed {
+			s.Fatal(err)
+		}
+	}()
 
-	if err = server.ListenAndServeTLS(certPath, keyPath); err != nil {
-		s.Fatal(err)
+	<-ctx.Done()
+
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer func() { cancel() }()
+
+	if err = server.Shutdown(ctxShutdown); err != nil {
+		s.Fatalf("Server shutdown failed: %s\n", err)
 	}
-	return 0
 }

@@ -1,10 +1,12 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Netflix/go-expect"
 )
@@ -27,14 +29,16 @@ func TestCommandUsage(t *testing.T) {
 		environment := map[string]string{}
 		var output string
 		var err error
-		status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
-			done := CloseSoon(c.Tty())
+		result := RunCommandTest(t, environment, arguments,
+			func(c *expect.Console, cancel context.CancelFunc) {
+				done := In(10*time.Millisecond, func() { c.Tty().Close() })
 
-			t.Log("waiting for eof...")
-			output, err = c.ExpectEOF()
-			t.Log("waiting for tty to close...")
-			<-done
-		})
+				t.Log("waiting for eof...")
+				output, err = c.ExpectEOF()
+				t.Log("waiting for tty to close...")
+				<-done
+			},
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -45,8 +49,8 @@ func TestCommandUsage(t *testing.T) {
 			t.Fatalf("error matching command output for \"identify %s\"\n%s\n", c, err)
 		}
 
-		if status != 0 {
-			t.Errorf("Expected status code 0, received %d.\n", status)
+		if result.Status != 0 {
+			t.Errorf("Expected status code 0, received %d.\n", result.Status)
 		}
 	}
 }

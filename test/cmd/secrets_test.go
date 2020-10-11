@@ -1,9 +1,11 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Netflix/go-expect"
 	"github.com/brianvoe/gofakeit/v5"
@@ -91,32 +93,34 @@ func GenerateSecret(t *testing.T, ti *TestIdentity) (*TestSecret, error) {
 
 	var err error
 	t.Logf("running '%s'", strings.Join(arguments, " "))
-	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
-		t.Log("waiting for passphrase prompt...")
-		_, err = c.Expectf("Passphrase: ")
-		if err != nil {
-			return
-		}
+	result := RunCommandTest(t, environment, arguments,
+		func(c *expect.Console, cancel context.CancelFunc) {
+			t.Log("waiting for passphrase prompt...")
+			_, err = c.Expectf("Passphrase: ")
+			if err != nil {
+				return
+			}
 
-		t.Logf("sending passphrase %s", ti.Passphrase)
-		_, err = c.SendLine(ti.Passphrase)
-		if err != nil {
-			return
-		}
+			t.Logf("sending passphrase %s", ti.Passphrase)
+			_, err = c.SendLine(ti.Passphrase)
+			if err != nil {
+				return
+			}
 
-		done := CloseSoon(c.Tty())
+			done := In(10*time.Millisecond, func() { c.Tty().Close() })
 
-		t.Log("waiting for eof...")
-		_, err = c.ExpectEOF()
-		t.Log("waiting for tty to close...")
-		<-done
-	})
+			t.Log("waiting for eof...")
+			_, err = c.ExpectEOF()
+			t.Log("waiting for tty to close...")
+			<-done
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	if status != 0 {
-		return nil, ErrorNonZeroExit{status}
+	if result.Status != 0 {
+		return nil, ErrorNonZeroExit{result.Status}
 	}
 
 	return &ts, err
@@ -130,34 +134,36 @@ func GetSecret(t *testing.T, ti *TestIdentity, key string) (string, error) {
 	t.Logf("running '%s'", strings.Join(arguments, " "))
 	var value string
 	var err error
-	status := RunCommandTest(t, environment, arguments, func(c *expect.Console) {
-		t.Log("waiting for passphrase prompt...")
-		_, err = c.ExpectString("Passphrase: ")
-		if err != nil {
-			return
-		}
+	result := RunCommandTest(t, environment, arguments,
+		func(c *expect.Console, cancel context.CancelFunc) {
+			t.Log("waiting for passphrase prompt...")
+			_, err = c.ExpectString("Passphrase: ")
+			if err != nil {
+				return
+			}
 
-		t.Log("sending passphrase")
-		_, err = c.SendLine(ti.Passphrase)
-		if err != nil {
-			return
-		}
+			t.Log("sending passphrase")
+			_, err = c.SendLine(ti.Passphrase)
+			if err != nil {
+				return
+			}
 
-		done := CloseSoon(c.Tty())
+			done := In(10*time.Millisecond, func() { c.Tty().Close() })
 
-		t.Log("waiting for eof...")
-		value, err = c.ExpectEOF()
-		t.Log("waiting for tty to close...")
-		<-done
-	})
+			t.Log("waiting for eof...")
+			value, err = c.ExpectEOF()
+			t.Log("waiting for tty to close...")
+			<-done
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	value = strings.TrimSpace(value)
 
-	if status != 0 {
-		return value, ErrorNonZeroExit{status}
+	if result.Status != 0 {
+		return value, ErrorNonZeroExit{result.Status}
 	}
 
 	return value, err

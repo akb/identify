@@ -18,6 +18,8 @@
 package test
 
 import (
+	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -32,11 +34,12 @@ import (
 	"github.com/akb/identify/internal/cli"
 )
 
-var dbPath string
-
 func init() {
 	gofakeit.Seed(time.Now().UnixNano())
+	os.Chdir("../..")
 }
+
+var dbPath string
 
 func TestMain(m *testing.M) {
 	dir, err := ioutil.TempDir("", "identify-testing")
@@ -51,34 +54,54 @@ func TestMain(m *testing.M) {
 }
 
 type CommandTestResult struct {
-	StatusCode int
+	Status int
+	STDOUT string
+	STDERR string
+}
+
+func (r *CommandTestResult) String() string {
+	return fmt.Sprintf("[BEGIN STDOUT]\n%s[END STDOUT]\n\n"+
+		"[BEGIN STDERR]\n%s[END STDERR]\n", r.STDOUT, r.STDERR)
 }
 
 func RunCommandTest(t *testing.T,
 	environment map[string]string,
 	arguments []string,
-	interact func(*expect.Console),
-) int {
+	interact func(*expect.Console, context.CancelFunc),
+) *CommandTestResult {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
 	arguments = append([]string{os.Args[0]}, arguments...)
-	system := gocli.NewTestSystem(t, arguments, environment)
+	system, output := gocli.NewTestSystem(t, arguments, environment)
 
-	done := make(chan struct{})
-	go func() {
-		interact(system.Console)
-		done <- struct{}{}
-	}()
+	done := Async(func() {
+		interact(system.Console, cancel)
+	})
 
-	status := gocli.Main(&cli.IdentifyCommand{}, system)
+	status := gocli.Main(ctx, &cli.IdentifyCommand{}, system)
+
 	<-done
-	return status
+
+	return &CommandTestResult{
+		Status: status,
+		STDOUT: output.STDOUT.String(),
+		STDERR: output.STDERR.String(),
+	}
 }
 
-func CloseSoon(f *os.File) chan struct{} {
+func Async(fn func()) chan struct{} {
 	done := make(chan struct{})
 	go func() {
-		time.Sleep(10 * time.Millisecond)
-		f.Close()
+		fn()
 		done <- struct{}{}
 	}()
 	return done
+}
+
+func In(d time.Duration, fn func()) chan struct{} {
+	return Async(func() {
+		time.Sleep(d)
+		fn()
+	})
 }

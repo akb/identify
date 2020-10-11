@@ -57,7 +57,6 @@ func NewHandler(c *Config) (http.Handler, error) {
 	h.Handle("/identities", http.HandlerFunc(h.identities))
 	h.Handle("/identities/new", http.HandlerFunc(h.identitiesNew))
 
-	// TODO: make this debug-only
 	csrfHandler := nosurf.New(h)
 	csrfHandler.SetFailureHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +66,9 @@ func NewHandler(c *Config) (http.Handler, error) {
 		}),
 	)
 
+	// TODO: make this debug-only
 	//return logger.New().Handler(csrfHandler), nil
+
 	return csrfHandler, nil
 }
 
