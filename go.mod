@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/storage v1.10.0
 	github.com/Netflix/go-expect v0.0.0-20200312175327-da48e75238e2
 	github.com/PuerkitoBio/goquery v1.5.1
-	github.com/akb/go-cli v0.8.2
+	github.com/akb/go-cli v0.9.0
 	github.com/akb/jwt-go-ed25519 v0.0.0-20200928192235-5b3b036e7573
 	github.com/axcdnt/snitch v1.1.0 // indirect
 	github.com/boltdb/bolt v1.3.1
