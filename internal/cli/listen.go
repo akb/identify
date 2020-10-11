@@ -49,38 +49,45 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 
 	dbPath, err := config.GetDBPath()
 	if err != nil {
+		println("GetDBPath failed")
 		s.Fatal(err)
 	}
 
 	tokenDBPath, err := config.GetTokenDBPath()
 	if err != nil {
+		println("GetTokenDBPath failed")
 		s.Fatal(err)
 	}
 
 	certPath, err := config.GetCertificatePath()
 	if err != nil {
+		println("GetCertificatePath failed")
 		s.Fatal(err)
 	}
 
 	keyPath, err := config.GetCertificateKeyPath()
 	if err != nil {
+		println("GetCertificateKeyPath failed")
 		s.Fatal(err)
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
+		println("NewLocalStore failed")
 		s.Fatal(err)
 	}
 	defer store.Close()
 
 	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
+		println("NewLocalStore failed")
 		s.Fatal(err)
 	}
 	defer tokenStore.Close()
 
 	identity := identify.IdentityFromContext(ctx)
 	if identity == nil {
+		println("Unauthorized")
 		s.Fatal("Unauthorized")
 	}
 
@@ -90,6 +97,7 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 		TokenStore:    tokenStore,
 	})
 	if err != nil {
+		println("NewHandler failed")
 		s.Fatal(err)
 	}
 
@@ -103,6 +111,7 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 		s.Printf("Listening for HTTP requests on %s...\n", address)
 		err = server.ListenAndServeTLS(certPath, keyPath)
 		if err != nil && err != http.ErrServerClosed {
+			println("not ErrServerClosed", err.Error())
 			s.Fatal(err)
 		}
 	}()
@@ -113,6 +122,7 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 	defer func() { cancel() }()
 
 	if err = server.Shutdown(ctxShutdown); err != nil {
+		println("shuttdoan failed")
 		s.Fatalf("Server shutdown failed: %s\n", err)
 	}
 }
