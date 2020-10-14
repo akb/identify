@@ -33,39 +33,41 @@ type GetSecretCommand struct{}
 func (GetSecretCommand) Help() {
 	fmt.Println("identify - authentication and authorization service")
 	fmt.Println("")
-	fmt.Println("Usage: identify get secret <key> <value>")
+	fmt.Println("Usage: identify get secret <key>")
 	fmt.Println("")
-	fmt.Println("Set the value of a secret")
+	fmt.Println("Get the value of a secret")
 }
 
-func (c GetSecretCommand) Command(ctx context.Context, args []string, s cli.System) {
+func (c GetSecretCommand) Command(ctx context.Context, args []string, s cli.System) error {
 	if len(args) != 1 {
 		c.Help()
-		s.Exit(1)
+		return &cli.ExitError{1, "get secret requires a the key of a secret to get"}
 	}
 
 	key := args[0]
 
 	i := identify.IdentityFromContext(ctx)
 	if i == nil {
-		s.Fatal("unauthorized")
+		return identify.ErrorUnauthorized
 	}
 
-	dbPath, err := config.GetDBPath()
+	dbPath, err := config.GetDBPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 	defer store.Close()
 
 	value, err := store.GetSecret(i, key)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	s.Println(value)
+
+	return nil
 }

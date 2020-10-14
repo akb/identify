@@ -27,26 +27,16 @@ import (
 	"github.com/Netflix/go-expect"
 )
 
-func TestListenCommand(t *testing.T) {
-	ti, err := GenerateNewIdentity(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = GenerateCertificate(t, ti)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func GenerateCertificate(t *testing.T, ti *TestIdentity) error {
 	environment := map[string]string{
 		"IDENTIFY_DB_PATH":              dbPath,
 		"IDENTIFY_CERTIFICATE_PATH":     certPath,
 		"IDENTIFY_CERTIFICATE_KEY_PATH": certKeyPath,
 	}
 
-	arguments := []string{"listen", fmt.Sprintf("-id=%s", ti.ID)}
+	arguments := []string{"new", "certificate", fmt.Sprintf("-id=%s", ti.ID)}
 
-	var output string
+	var err error
 	t.Logf("running '%s'", strings.Join(arguments, " "))
 	result := RunCommandTest(t, environment, arguments,
 		func(c *expect.Console, cancel context.CancelFunc) {
@@ -62,27 +52,20 @@ func TestListenCommand(t *testing.T) {
 				return
 			}
 
-			done := In(100*time.Millisecond, func() {
+			done := In(10*time.Millisecond, func() {
 				c.Tty().Close()
-				cancel()
 			})
 
 			t.Log("waiting for eof...")
-			output, err = c.ExpectEOF()
+			_, err = c.ExpectEOF()
+			t.Log("waiting for tty to close...", err)
 			<-done
 		},
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if result.Status != 0 {
-		t.Errorf("error: '%s' returned nonzero status %d", strings.Join(arguments, " "), result.Status)
-		t.Fatal(result.String())
+		return ErrorNonZeroExit{result.Status}
 	}
 
-	if strings.TrimSpace(output) != "Listening for HTTP requests on 0.0.0.0:8443..." {
-		t.Fatalf("unexpected output: '%s'\n", output)
-		t.Fatal(result.String())
-	}
+	return err
 }

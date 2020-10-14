@@ -37,15 +37,15 @@ func (c *NewIdentityCommand) Flags(f *flag.FlagSet) {
 
 func (NewIdentityCommand) Help() {}
 
-func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.System) {
-	dbPath, err := config.GetDBPath()
+func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.System) error {
+	dbPath, err := config.GetDBPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 	defer store.Close()
 
@@ -53,7 +53,7 @@ func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.Sy
 	passphrase, err := s.ReadPassword()
 	s.Println()
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	var aliases []string
@@ -63,8 +63,10 @@ func (c NewIdentityCommand) Command(ctx context.Context, args []string, s cli.Sy
 
 	public, _, err := store.NewIdentity(string(passphrase), aliases)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	s.Println(public.String())
+
+	return nil
 }

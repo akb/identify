@@ -11,14 +11,6 @@ import (
 	"github.com/brianvoe/gofakeit/v5"
 )
 
-type ErrorNonZeroExit struct {
-	status int
-}
-
-func (err ErrorNonZeroExit) Error() string {
-	return fmt.Sprintf("expected zero exit status; received %d", err.status)
-}
-
 type TestSecret struct {
 	Key   string
 	Value string

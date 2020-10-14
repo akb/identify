@@ -21,26 +21,28 @@ import (
 	"fmt"
 	"os"
 	"path"
+
+	"github.com/akb/go-cli"
 )
 
-func GetHTTPAddress() string {
-	address := os.Getenv("IDENTIFY_HTTP_ADDRESS")
+func GetHTTPAddress(s cli.System) string {
+	address := s.Getenv("IDENTIFY_HTTP_ADDRESS")
 	if len(address) == 0 {
 		return "0.0.0.0:8443"
 	}
 	return address
 }
 
-func GetRealm() string {
-	realm := os.Getenv("IDENTIFY_REALM")
+func GetRealm(s cli.System) string {
+	realm := s.Getenv("IDENTIFY_REALM")
 	if len(realm) == 0 {
 		return "localhost"
 	}
 	return realm
 }
 
-func GetTokenSecret() ([]byte, error) {
-	tokenSecret := os.Getenv("IDENTIFY_TOKEN_SECRET")
+func GetTokenSecret(s cli.System) ([]byte, error) {
+	tokenSecret := s.Getenv("IDENTIFY_TOKEN_SECRET")
 	if len(tokenSecret) == 0 {
 		return []byte{}, fmt.Errorf("An secret key to sign tokens with must be " +
 			"provided by the environment variable IDENTIFY_TOKEN_SECRET.")
@@ -48,8 +50,8 @@ func GetTokenSecret() ([]byte, error) {
 	return []byte(tokenSecret), nil
 }
 
-func GetDBPath() (string, error) {
-	dbPath := os.Getenv("IDENTIFY_DB_PATH")
+func GetDBPath(s cli.System) (string, error) {
+	dbPath := s.Getenv("IDENTIFY_DB_PATH")
 	if len(dbPath) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -61,8 +63,8 @@ func GetDBPath() (string, error) {
 	return dbPath, nil
 }
 
-func GetTokenDBPath() (string, error) {
-	tokenDBPath := os.Getenv("IDENTIFY_TOKEN_DB_PATH")
+func GetTokenDBPath(s cli.System) (string, error) {
+	tokenDBPath := s.Getenv("IDENTIFY_TOKEN_DB_PATH")
 	if len(tokenDBPath) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -74,8 +76,8 @@ func GetTokenDBPath() (string, error) {
 	return tokenDBPath, nil
 }
 
-func GetCertificatePath() (string, error) {
-	certificatePath := os.Getenv("IDENTIFY_CERTIFICATE_PATH")
+func GetCertificatePath(s cli.System) (string, error) {
+	certificatePath := s.Getenv("IDENTIFY_CERTIFICATE_PATH")
 	if len(certificatePath) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -87,8 +89,8 @@ func GetCertificatePath() (string, error) {
 	return certificatePath, nil
 }
 
-func GetCertificateKeyPath() (string, error) {
-	certificateKeyPath := os.Getenv("IDENTIFY_CERTIFICATE_KEY_PATH")
+func GetCertificateKeyPath(s cli.System) (string, error) {
+	certificateKeyPath := s.Getenv("IDENTIFY_CERTIFICATE_KEY_PATH")
 	if len(certificateKeyPath) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {

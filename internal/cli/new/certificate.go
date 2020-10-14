@@ -23,6 +23,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/akb/go-cli"
 
 	"github.com/akb/identify"
@@ -44,20 +46,20 @@ a bogus cert to get the http server running.
 `)
 }
 
-func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli.System) {
+func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli.System) error {
 	i := identify.IdentityFromContext(ctx)
 	if i == nil {
-		s.Fatal("unauthorized")
+		return errors.New("unauthorized")
 	}
 
-	certificatePath, err := config.GetCertificatePath()
+	certificatePath, err := config.GetCertificatePath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
-	certificateKeyPath, err := config.GetCertificateKeyPath()
+	certificateKeyPath, err := config.GetCertificateKeyPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	if _, err := os.Stat(certificatePath); !os.IsNotExist(err) {
@@ -65,18 +67,20 @@ func (c NewCertificateCommand) Command(ctx context.Context, args []string, s cli
 		s.Printf("Certificate exists, overwrite? ")
 		_, err := s.Scan(&confirmation)
 		if err != nil {
-			s.Fatal(err)
+			return err
 		}
 		confirmation = strings.TrimSpace(confirmation)
 		confirmation = strings.ToLower(confirmation)
 		if confirmation[0] != 'y' {
-			return
+			return nil
 		}
 	}
 
 	if err := certificate.Generate(i, certificatePath, certificateKeyPath); err != nil {
-		s.Fatal(err)
+		return err
 	}
 
-	s.Println("WARNING: Certificates should only be used for testing")
+	s.Log("WARNING: Certificates should only be used for testing")
+
+	return nil
 }
