@@ -39,7 +39,7 @@ func init() {
 	os.Chdir("../..")
 }
 
-var dbPath string
+var dbPath, tokenDBPath, certPath, certKeyPath string
 
 func TestMain(m *testing.M) {
 	dir, err := ioutil.TempDir("", "identify-testing")
@@ -49,6 +49,9 @@ func TestMain(m *testing.M) {
 	defer os.RemoveAll(dir)
 
 	dbPath = filepath.Join(dir, "identity.db")
+	tokenDBPath = filepath.Join(dir, "token.db")
+	certPath = filepath.Join(dir, "certificate.pem")
+	certKeyPath = filepath.Join(dir, "certificate-key.pem")
 
 	os.Exit(m.Run())
 }
@@ -59,8 +62,16 @@ type CommandTestResult struct {
 	STDERR string
 }
 
+type ErrorNonZeroExit struct {
+	status int
+}
+
+func (err ErrorNonZeroExit) Error() string {
+	return fmt.Sprintf("expected zero exit status; received %d", err.status)
+}
+
 func (r *CommandTestResult) String() string {
-	return fmt.Sprintf("[BEGIN STDOUT]\n%s[END STDOUT]\n\n"+
+	return fmt.Sprintf("\n[BEGIN STDOUT]\n%s[END STDOUT]\n\n"+
 		"[BEGIN STDERR]\n%s[END STDERR]\n", r.STDOUT, r.STDERR)
 }
 

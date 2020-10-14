@@ -43,45 +43,45 @@ func (ListenCommand) Help() {
 	fmt.Println("Listen for HTTPS traffic")
 }
 
-func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System) {
-	address := config.GetHTTPAddress()
-	realm := config.GetRealm()
+func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System) error {
+	address := config.GetHTTPAddress(s)
+	realm := config.GetRealm(s)
 
-	dbPath, err := config.GetDBPath()
+	dbPath, err := config.GetDBPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
-	tokenDBPath, err := config.GetTokenDBPath()
+	tokenDBPath, err := config.GetTokenDBPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
-	certPath, err := config.GetCertificatePath()
+	certPath, err := config.GetCertificatePath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
-	keyPath, err := config.GetCertificateKeyPath()
+	keyPath, err := config.GetCertificateKeyPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 	defer store.Close()
 
 	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 	defer tokenStore.Close()
 
 	identity := identify.IdentityFromContext(ctx)
 	if identity == nil {
-		s.Fatal("Unauthorized")
+		return identify.ErrorUnauthorized
 	}
 
 	handler, err := web.NewHandler(&web.Config{
@@ -90,7 +90,7 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 		TokenStore:    tokenStore,
 	})
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	server := &http.Server{
@@ -103,7 +103,7 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 		s.Printf("Listening for HTTP requests on %s...\n", address)
 		err = server.ListenAndServeTLS(certPath, keyPath)
 		if err != nil && err != http.ErrServerClosed {
-			s.Fatal(err)
+			s.Log(err.Error())
 		}
 	}()
 
@@ -112,7 +112,5 @@ func (c ListenCommand) Command(ctx context.Context, args []string, s cli.System)
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer func() { cancel() }()
 
-	if err = server.Shutdown(ctxShutdown); err != nil {
-		s.Fatalf("Server shutdown failed: %s\n", err)
-	}
+	return server.Shutdown(ctxShutdown)
 }

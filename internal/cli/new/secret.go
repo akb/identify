@@ -38,10 +38,10 @@ func (NewSecretCommand) Help() {
 	fmt.Println("Set the value of a secret")
 }
 
-func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.System) {
+func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.System) error {
 	if len(args) != 2 {
 		c.Help()
-		s.Exit(1)
+		return &cli.ExitError{1, "new secret requires a key and a value"}
 	}
 
 	key := args[0]
@@ -49,21 +49,19 @@ func (c NewSecretCommand) Command(ctx context.Context, args []string, s cli.Syst
 
 	i := identify.IdentityFromContext(ctx)
 	if i == nil {
-		s.Fatal("unauthorized")
+		return identify.ErrorUnauthorized
 	}
 
-	dbPath, err := config.GetDBPath()
+	dbPath, err := config.GetDBPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 	defer store.Close()
 
-	if err = store.PutSecret(i, key, value); err != nil {
-		s.Fatal(err)
-	}
+	return store.PutSecret(i, key, value)
 }

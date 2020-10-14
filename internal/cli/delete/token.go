@@ -22,8 +22,11 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/akb/go-cli"
 
+	"github.com/akb/identify"
 	"github.com/akb/identify/internal/config"
 	"github.com/akb/identify/internal/token"
 )
@@ -46,15 +49,15 @@ func (c *DeleteTokenCommand) Flags(f *flag.FlagSet) {
 	c.tokenID = f.String("token-id", "", "id of token to delete")
 }
 
-func (c DeleteTokenCommand) Command(ctx context.Context, args []string, s cli.System) {
-	tokenDBPath, err := config.GetTokenDBPath()
+func (c DeleteTokenCommand) Command(ctx context.Context, args []string, s cli.System) error {
+	tokenDBPath, err := config.GetTokenDBPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	tokenStore, err := token.NewLocalStore(tokenDBPath)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 	defer tokenStore.Close()
 
@@ -63,12 +66,9 @@ func (c DeleteTokenCommand) Command(ctx context.Context, args []string, s cli.Sy
 		id = *c.id
 		tokenID = *c.tokenID
 	} else {
-		s.Fatal("both an identity and a token must be specified")
+		return errors.Wrap(identify.ErrorValidation,
+			"Both an identity and a token must be specified")
 	}
 
-	if err := tokenStore.Delete(id, tokenID); err != nil {
-		s.Fatal(err)
-	}
-
-	s.Println("Token successfully deleted")
+	return tokenStore.Delete(id, tokenID)
 }

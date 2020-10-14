@@ -50,42 +50,42 @@ func (c *requiresCLIUserAuthCommand) Flags(f *flag.FlagSet) {
 	}
 }
 
-func (c requiresCLIUserAuthCommand) Command(ctx context.Context, args []string, s cli.System) {
-	dbPath, err := config.GetDBPath()
+func (c requiresCLIUserAuthCommand) Command(ctx context.Context, args []string, s cli.System) error {
+	dbPath, err := config.GetDBPath(s)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	store, err := identity.NewLocalStore(dbPath)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	public, err := store.GetIdentity(*c.id)
 	store.Close()
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	s.Print("Passphrase: ")
 	passphrase, err := s.ReadPassword()
 	s.Println()
 	if err != nil {
-		s.Fatalf("Error while reading passphrase.\n%s\n", err.Error())
+		return err
 	}
 
 	private, err := public.Authenticate(passphrase)
 	if err != nil {
-		s.Fatal(err)
+		return err
 	}
 
 	ctx = context.WithValue(ctx, identityContextKey, private)
 
 	if b, ok := (interface{})(c.wrapped).(cli.Action); ok {
-		b.Command(ctx, args, s)
+		return b.Command(ctx, args, s)
 	} else {
 		c.Help()
-		s.Exit(1)
+		return nil
 	}
 }
 
