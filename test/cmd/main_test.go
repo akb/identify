@@ -39,7 +39,7 @@ func init() {
 	os.Chdir("../..")
 }
 
-var dbPath, certPath, certKeyPath string
+var dbPath, tokenDBPath, certPath, certKeyPath string
 
 func TestMain(m *testing.M) {
 	dir, err := ioutil.TempDir("", "identify-testing")
@@ -49,6 +49,7 @@ func TestMain(m *testing.M) {
 	defer os.RemoveAll(dir)
 
 	dbPath = filepath.Join(dir, "identity.db")
+	tokenDBPath = filepath.Join(dir, "token.db")
 	certPath = filepath.Join(dir, "certificate.pem")
 	certKeyPath = filepath.Join(dir, "certificate-key.pem")
 

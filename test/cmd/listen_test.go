@@ -40,6 +40,7 @@ func TestListenCommand(t *testing.T) {
 
 	environment := map[string]string{
 		"IDENTIFY_DB_PATH":              dbPath,
+		"IDENTIFY_TOKEN_DB_PATH":        tokenDBPath,
 		"IDENTIFY_CERTIFICATE_PATH":     certPath,
 		"IDENTIFY_CERTIFICATE_KEY_PATH": certKeyPath,
 	}
