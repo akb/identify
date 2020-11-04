@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -115,4 +116,31 @@ func In(d time.Duration, fn func()) chan struct{} {
 		time.Sleep(d)
 		fn()
 	})
+}
+
+func TestCommand(t *testing.T) {
+	var output string
+	var err error
+	result := RunCommandTest(t, map[string]string{}, []string{},
+		func(c *expect.Console, cancel context.CancelFunc) {
+			done := In(10*time.Millisecond, func() { c.Tty().Close() })
+
+			t.Log("waiting for eof...")
+			output, err = c.ExpectEOF()
+			t.Log("waiting for tty to close...")
+			<-done
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pattern := regexp.MustCompile(`Usage: identify <subcommand>`)
+	if !pattern.Match([]byte(output)) {
+		t.Fatalf("error matching command output for \"identify\"\n%s\n", err)
+	}
+
+	if result.Status != 0 {
+		t.Errorf("Expected status code 0, received %d.\n", result.Status)
+	}
 }

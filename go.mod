@@ -22,5 +22,6 @@ require (
 	github.com/tebeka/selenium v0.9.9
 	github.com/unrolled/logger v0.0.0-20190327162521-be1a2406c7c9
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
+	golang.org/x/tools/gopls v0.5.1 // indirect
 	google.golang.org/api v0.31.0
 )

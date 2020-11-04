@@ -43,9 +43,8 @@ func TestCommandUsage(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		pattern := fmt.Sprintf("Usage: identify %s", c)
-		_, err = regexp.Match(pattern, []byte(output))
-		if err != nil {
+		pattern := regexp.MustCompile(fmt.Sprintf("Usage: identify %s", c))
+		if !pattern.Match([]byte(output)) {
 			t.Fatalf("error matching command output for \"identify %s\"\n%s\n", c, err)
 		}
 
